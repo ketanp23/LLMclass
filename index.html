@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>From N-grams to Transformers · Labs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#12123A; --navy2:#1B1B52; --violet:#6C5CE7; --cyan:#22D3EE;
+    --light:#F5F5FB; --tint:#EEECFB; --tint2:#E4FAFD; --ink:#1E1B3A;
+    --mute:#6B6B8D; --line:#DAD8EE; --amber:#F59E0B; --rose:#FB7185; --green:#10B981;
+    --spine:#2C2C6E;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    color:var(--ink); background:var(--light);
+    -webkit-font-smoothing:antialiased; line-height:1.6;
+  }
+  .mono{font-family:'JetBrains Mono',monospace}
+  h1,h2,h3{font-family:'Fraunces',Georgia,serif; line-height:1.08; font-weight:600}
+  a{color:inherit}
+
+  /* ---------- HERO ---------- */
+  .hero{
+    position:relative; background:var(--navy); color:#fff; overflow:hidden;
+    padding:clamp(3.5rem,9vw,7rem) clamp(1.25rem,6vw,5rem) clamp(4rem,8vw,6rem);
+  }
+  .hero::before{
+    content:""; position:absolute; inset:0;
+    background:radial-gradient(1100px 520px at 78% -8%, rgba(108,92,231,.42), transparent 60%),
+               radial-gradient(760px 460px at 8% 118%, rgba(34,211,238,.22), transparent 62%);
+  }
+  .hero-inner{position:relative; max-width:1080px; margin:0 auto}
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace; font-size:.74rem; letter-spacing:.28em;
+    text-transform:uppercase; color:var(--cyan); margin-bottom:1.5rem;
+    display:flex; align-items:center; gap:.85rem;
+  }
+  .eyebrow::before{content:""; width:34px; height:2px; background:var(--cyan); display:inline-block}
+  .hero h1{
+    font-size:clamp(2.5rem,7vw,5.2rem); font-weight:600; letter-spacing:-.015em;
+    max-width:16ch;
+  }
+  .hero h1 em{font-style:italic; color:var(--cyan); font-weight:500}
+  .hero .lede{
+    margin-top:1.75rem; max-width:52ch; font-size:clamp(1.02rem,1.9vw,1.28rem);
+    color:#C9C7E8;
+  }
+  .hero .lede b{color:#fff; font-weight:600}
+  .pill-row{margin-top:2.4rem; display:flex; gap:.6rem; flex-wrap:wrap}
+  .pill{
+    font-family:'JetBrains Mono',monospace; font-size:.72rem; letter-spacing:.04em;
+    padding:.5rem .85rem; border:1px solid rgba(255,255,255,.18); border-radius:999px;
+    color:#D8D6F2; background:rgba(255,255,255,.04);
+  }
+
+  /* probability motif in hero */
+  .predict{
+    position:relative; margin-top:3rem; max-width:430px;
+    background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12);
+    border-radius:16px; padding:1.15rem 1.3rem;
+  }
+  .predict .prompt{font-family:'JetBrains Mono',monospace; font-size:.82rem; color:#B9B7E0; margin-bottom:.9rem}
+  .predict .prompt .cursor{color:var(--cyan); font-weight:600}
+  .bar{display:flex; align-items:center; gap:.7rem; margin:.42rem 0; font-size:.8rem}
+  .bar .w{width:74px; text-align:right; font-family:'JetBrains Mono',monospace; color:#EDEBFF}
+  .bar .track{flex:1; height:9px; background:rgba(255,255,255,.09); border-radius:5px; overflow:hidden}
+  .bar .fill{height:100%; border-radius:5px; width:0;
+    background:linear-gradient(90deg,var(--violet),var(--cyan));
+    animation:grow 1.1s cubic-bezier(.2,.8,.2,1) forwards}
+  .bar:nth-child(2) .fill{animation-delay:.15s} .bar:nth-child(2) .fill{--w:82%}
+  @keyframes grow{to{width:var(--w)}}
+  .bar .p{width:38px; color:#8F8DB8; font-family:'JetBrains Mono',monospace}
+
+  /* ---------- SECTION SHELL ---------- */
+  section{padding:clamp(3.5rem,7vw,6rem) clamp(1.25rem,6vw,5rem)}
+  .wrap{max-width:1080px; margin:0 auto}
+  .sec-head{max-width:60ch; margin-bottom:3rem}
+  .sec-head .tag{
+    font-family:'JetBrains Mono',monospace; font-size:.74rem; letter-spacing:.22em;
+    text-transform:uppercase; color:var(--violet); display:block; margin-bottom:.9rem;
+  }
+  .sec-head h2{font-size:clamp(1.9rem,4.2vw,3rem); letter-spacing:-.01em}
+  .sec-head p{margin-top:1rem; color:var(--mute); font-size:1.08rem; max-width:54ch}
+
+  /* ---------- LINEAGE SPINE ---------- */
+  .lineage{position:relative}
+  .spine-svg{position:absolute; left:calc(clamp(1.25rem,6vw,5rem)); top:0; height:100%; width:60px; z-index:0; pointer-events:none}
+  .lineage .wrap{position:relative; z-index:1}
+  .station{
+    position:relative; display:grid; grid-template-columns:60px 1fr; gap:clamp(1rem,3vw,2.2rem);
+    padding-bottom:clamp(2rem,4vw,3.2rem);
+  }
+  .node{
+    position:relative; width:60px; display:flex; justify-content:center; padding-top:.3rem;
+  }
+  .node .dot{
+    width:20px; height:20px; border-radius:50%; background:var(--navy);
+    border:3px solid var(--violet); z-index:2; position:relative;
+    box-shadow:0 0 0 6px var(--light);
+  }
+  .station.cyan .node .dot{border-color:var(--cyan)}
+  .station:hover .node .dot{box-shadow:0 0 0 6px var(--light),0 0 22px 2px rgba(108,92,231,.55); transition:box-shadow .3s}
+  .card{
+    background:#fff; border:1px solid var(--line); border-radius:18px;
+    padding:clamp(1.4rem,3vw,2rem); box-shadow:0 1px 2px rgba(30,27,58,.04);
+    transition:transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s, border-color .35s;
+  }
+  .card:hover{transform:translateY(-4px); box-shadow:0 22px 48px -20px rgba(30,27,58,.28); border-color:var(--tint)}
+  .card .era{
+    font-family:'JetBrains Mono',monospace; font-size:.72rem; letter-spacing:.12em;
+    color:var(--violet); text-transform:uppercase; font-weight:600;
+  }
+  .station.cyan .card .era{color:#0EA5C4}
+  .card h3{font-size:clamp(1.35rem,2.6vw,1.7rem); margin:.5rem 0 .1rem; letter-spacing:-.01em}
+  .card .sub{color:var(--mute); font-size:.9rem; margin-bottom:.9rem; font-family:'JetBrains Mono',monospace}
+  .card p{color:#3a3560; font-size:1rem}
+  .card p + p{margin-top:.7rem}
+  .card .formula{
+    display:inline-block; margin:.9rem 0 .2rem; background:var(--navy); color:#EDEBFF;
+    font-family:'JetBrains Mono',monospace; font-size:.85rem; padding:.55rem .9rem;
+    border-radius:9px; letter-spacing:.01em;
+  }
+  .breaks{
+    margin-top:1.1rem; display:flex; gap:.7rem; align-items:flex-start;
+    background:linear-gradient(0deg,var(--tint2),var(--tint2)); border-radius:11px;
+    padding:.75rem .9rem; border-left:3px solid var(--rose);
+  }
+  .breaks .lbl{font-family:'JetBrains Mono',monospace; font-size:.66rem; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--rose); font-weight:600; white-space:nowrap; padding-top:.15rem}
+  .breaks p{font-size:.92rem; color:#4a3f55; margin:0}
+  .lab-link{
+    display:inline-flex; align-items:center; gap:.5rem; margin-top:1.2rem;
+    font-family:'JetBrains Mono',monospace; font-size:.8rem; font-weight:600;
+    color:var(--violet); text-decoration:none; padding:.5rem .5rem .5rem 0;
+    border-bottom:2px solid transparent; transition:gap .25s, border-color .25s;
+  }
+  .lab-link:hover{gap:.85rem; border-color:var(--violet)}
+  .lab-link svg{width:15px; height:15px}
+
+  /* ---------- LABS ---------- */
+  .labs{background:var(--navy); color:#fff}
+  .labs::selection{background:var(--violet)}
+  .labs .sec-head .tag{color:var(--cyan)}
+  .labs .sec-head h2{color:#fff}
+  .labs .sec-head p{color:#B7B5DC}
+  .lab-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.1rem}
+  .lab{
+    position:relative; background:var(--navy2); border:1px solid rgba(255,255,255,.09);
+    border-radius:18px; padding:1.6rem 1.5rem; overflow:hidden; display:flex; flex-direction:column;
+    transition:transform .35s cubic-bezier(.2,.8,.2,1), border-color .35s;
+  }
+  .lab::before{content:""; position:absolute; top:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg,var(--violet),var(--cyan)); opacity:.85}
+  .lab:hover{transform:translateY(-5px); border-color:rgba(108,92,231,.5)}
+  .lab .num{font-family:'JetBrains Mono',monospace; font-size:.72rem; color:var(--cyan); letter-spacing:.14em}
+  .lab h3{color:#fff; font-size:1.32rem; margin:.55rem 0 .2rem}
+  .lab .file{font-family:'JetBrains Mono',monospace; font-size:.74rem; color:#8E8CC0; margin-bottom:1rem; word-break:break-all}
+  .lab ul{list-style:none; margin:0 0 1.3rem; display:flex; flex-direction:column; gap:.5rem}
+  .lab li{font-size:.9rem; color:#CFCDEC; padding-left:1.35rem; position:relative}
+  .lab li::before{content:""; position:absolute; left:0; top:.55em; width:7px; height:7px;
+    border-radius:50%; background:var(--cyan)}
+  .lab .foot{margin-top:auto; font-family:'JetBrains Mono',monospace; font-size:.72rem; color:#7E7CB0}
+  .lab .gpu{color:var(--amber)}
+
+  /* ---------- HOW TO RUN ---------- */
+  .run{background:var(--light)}
+  .steps{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:1.1rem; counter-reset:s}
+  .step{
+    background:#fff; border:1px solid var(--line); border-radius:16px; padding:1.5rem;
+    position:relative;
+  }
+  .step::before{
+    counter-increment:s; content:"0" counter(s);
+    font-family:'Fraunces',serif; font-size:2.2rem; font-weight:600; color:var(--tint);
+    position:absolute; top:.8rem; right:1.1rem; line-height:1;
+  }
+  .step h3{font-size:1.12rem; margin-bottom:.5rem; max-width:14ch}
+  .step p{color:var(--mute); font-size:.92rem}
+  .step code{font-family:'JetBrains Mono',monospace; background:var(--tint); color:var(--violet);
+    padding:.12rem .4rem; border-radius:5px; font-size:.85em}
+
+  /* ---------- FOOTER ---------- */
+  footer{background:var(--navy); color:#8E8CC0; padding:2.6rem clamp(1.25rem,6vw,5rem);
+    font-family:'JetBrains Mono',monospace; font-size:.78rem; text-align:center; letter-spacing:.03em}
+  footer b{color:#D8D6F2; font-weight:500}
+
+  /* reveal */
+  .reveal{opacity:0; transform:translateY(22px); transition:opacity .7s ease, transform .7s cubic-bezier(.2,.8,.2,1)}
+  .reveal.in{opacity:1; transform:none}
+
+  @media (max-width:640px){
+    .station{grid-template-columns:34px 1fr; gap:1rem}
+    .node{width:34px}
+    .spine-svg{width:34px}
+    .predict{max-width:100%}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important; scroll-behavior:auto}
+    .reveal{opacity:1; transform:none; transition:none}
+    .bar .fill{width:var(--w)}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">Interactive Lab Companion</div>
+    <h1>From N-grams to <em>Transformers</em></h1>
+    <p class="lede">Language modeling is one long argument. Each method here was born from the
+      <b>failure of the one before it</b> — and every step is something you can run, break, and rebuild in the labs below.</p>
+    <div class="predict">
+      <div class="prompt">the cat sat on the <span class="cursor">▋</span></div>
+      <div class="bar"><span class="w">mat</span><span class="track"><span class="fill" style="--w:88%"></span></span><span class="p">.61</span></div>
+      <div class="bar"><span class="w">floor</span><span class="track"><span class="fill" style="--w:55%"></span></span><span class="p">.19</span></div>
+      <div class="bar"><span class="w">roof</span><span class="track"><span class="fill" style="--w:30%"></span></span><span class="p">.08</span></div>
+    </div>
+    <div class="pill-row">
+      <span class="pill">7 concepts</span>
+      <span class="pill">4 Colab notebooks</span>
+      <span class="pill">Runs on free GPU/CPU</span>
+      <span class="pill">Build every model from scratch</span>
+    </div>
+  </div>
+</header>
+
+<!-- ============ LINEAGE ============ -->
+<section class="lineage">
+  <svg class="spine-svg" viewBox="0 0 60 100" preserveAspectRatio="none" aria-hidden="true">
+    <line id="spineLine" x1="30" y1="0" x2="30" y2="100" stroke="var(--spine)" stroke-width="2"/>
+    <line id="spineProg" x1="30" y1="0" x2="30" y2="100" stroke="url(#g)" stroke-width="3"
+      pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/>
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6C5CE7"/><stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient></defs>
+  </svg>
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="tag">The Lineage</span>
+      <h2>Seven ideas, each answering the last</h2>
+      <p>Follow the thread top to bottom. The rose note on each card is the specific limitation
+        that made the next idea necessary.</p>
+    </div>
+
+    <!-- 1 -->
+    <div class="station reveal">
+      <div class="node"><span class="dot"></span></div>
+      <div class="card">
+        <span class="era">The premise</span>
+        <h3>What a language model is</h3>
+        <div class="sub">assign probability to sequences</div>
+        <p>A language model scores how likely a sequence of words is, which lets it predict the next
+          token. Factor the joint probability with the chain rule and the whole field becomes one
+          question: how do you estimate each conditional term?</p>
+        <span class="formula">P(w₁…wₙ) = ∏ P(wᵢ | w₁…wᵢ₋₁)</span>
+        <div class="breaks"><span class="lbl">The catch</span>
+          <p>Conditioning on the entire history is impossible to estimate directly — the contexts are
+            never seen twice.</p></div>
+      </div>
+    </div>
+
+    <!-- 2 -->
+    <div class="station reveal">
+      <div class="node"><span class="dot"></span></div>
+      <div class="card">
+        <span class="era">1990s · Counting</span>
+        <h3>N-gram models</h3>
+        <div class="sub">the Markov shortcut</div>
+        <p>Approximate the full history with the last <em>n−1</em> words, then just count. A bigram model
+          asks only "given the previous word, what comes next?" — estimated from corpus frequencies with
+          smoothing to survive unseen pairs.</p>
+        <span class="formula">P(wᵢ | wᵢ₋ₙ₊₁ … wᵢ₋₁)</span>
+        <div class="breaks"><span class="lbl">Breaks on</span>
+          <p>Counts get sparse fast, the model forgets anything beyond a few words back, and every word is
+            an atomic symbol with no notion of similarity.</p></div>
+        <a class="lab-link" href="#lab0">Lab 0 · build an n-gram LM<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      </div>
+    </div>
+
+    <!-- 3 -->
+    <div class="station cyan reveal">
+      <div class="node"><span class="dot"></span></div>
+      <div class="card">
+        <span class="era">2013 · Meaning as geometry</span>
+        <h3>Word embeddings</h3>
+        <div class="sub">Word2Vec · GloVe</div>
+        <p>Replace one-hot symbols with dense vectors learned so that words used in similar contexts land
+          near each other. Word2Vec learns them by predicting context (Skip-gram / CBOW); GloVe factorizes
+          a global co-occurrence matrix. Suddenly <span class="mono">king − man + woman ≈ queen</span>.</p>
+        <div class="breaks"><span class="lbl">Breaks on</span>
+          <p>Each word gets one fixed vector regardless of sentence, and embeddings alone don't model word
+            <em>order</em> — you still need something to read a sequence.</p></div>
+        <a class="lab-link" href="#lab1">Lab 1 · train &amp; explore embeddings<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      </div>
+    </div>
+
+    <!-- 4 -->
+    <div class="station reveal">
+      <div class="node"><span class="dot"></span></div>
+      <div class="card">
+        <span class="era">2010s · Reading in order</span>
+        <h3>Recurrent networks (RNNs)</h3>
+        <div class="sub">a hidden state that carries the past</div>
+        <p>Process tokens one at a time, folding each new input into a hidden state that acts as memory.
+          The same weights apply at every step, so in principle an RNN can use context of any length.</p>
+        <span class="formula">hₜ = tanh(Wₓ xₜ + Wₕ hₜ₋₁ + b)</span>
+        <div class="breaks"><span class="lbl">Breaks on</span>
+          <p>Gradients vanish across many steps, so "in principle unlimited" memory becomes "in practice a
+            handful of words." Training is also strictly sequential.</p></div>
+        <a class="lab-link" href="#lab2">Lab 2 · a char-level RNN<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      </div>
+    </div>
+
+    <!-- 5 -->
+    <div class="station reveal">
+      <div class="node"><span class="dot"></span></div>
+      <div class="card">
+        <span class="era">Gated memory</span>
+        <h3>LSTMs &amp; their limits</h3>
+        <div class="sub">forget · input · output gates</div>
+        <p>LSTMs add a protected cell state and learnable gates that decide what to keep, add, and expose.
+          The gating lets gradients flow across far longer spans, which is why LSTMs powered a decade of
+          translation and speech.</p>
+        <div class="breaks"><span class="lbl">Breaks on</span>
+          <p>Still fundamentally sequential (no parallelism over time), still strained by very long
+            dependencies, and the whole past is squeezed through one fixed-size state.</p></div>
+        <a class="lab-link" href="#lab2">Lab 2 · RNN vs LSTM, side by side<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      </div>
+    </div>
+
+    <!-- 6 -->
+    <div class="station cyan reveal">
+      <div class="node"><span class="dot"></span></div>
+      <div class="card">
+        <span class="era">2015 · Look anywhere</span>
+        <h3>The attention mechanism</h3>
+        <div class="sub">query · key · value</div>
+        <p>Instead of forcing everything through one state, let each position look directly at every other
+          position and pull in what's relevant. Compare a query to all keys, softmax into weights, take a
+          weighted sum of values — dependencies become distance-independent.</p>
+        <span class="formula">Attention(Q,K,V) = softmax(QKᵀ/√dₖ) V</span>
+        <div class="breaks"><span class="lbl">The opening</span>
+          <p>If attention alone can relate any two tokens in one step, do we even need recurrence?</p></div>
+        <a class="lab-link" href="#lab3">Lab 3 · attention from scratch<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      </div>
+    </div>
+
+    <!-- 7 -->
+    <div class="station cyan reveal">
+      <div class="node"><span class="dot"></span></div>
+      <div class="card">
+        <span class="era">2017 · Attention is all you need</span>
+        <h3>The Transformer</h3>
+        <div class="sub">stacked self-attention + feed-forward</div>
+        <p>Drop recurrence entirely. Multi-head self-attention mixes information across the sequence in
+          parallel; positional encodings restore word order; residual connections, layer norm, and
+          feed-forward blocks stack into deep encoders and decoders. Fully parallel, scales beautifully —
+          the architecture behind modern LLMs.</p>
+        <div class="breaks" style="border-left-color:var(--green)"><span class="lbl" style="color:var(--green)">The payoff</span>
+          <p>Every earlier limitation — sparsity, forgetting, no parallelism — answered at once.</p></div>
+        <a class="lab-link" href="#lab3">Lab 3 · build a Transformer block<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============ LABS ============ -->
+<section class="labs" id="labs">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="tag">The Notebooks</span>
+      <h2>Four labs, one for each turn of the story</h2>
+      <p>Every notebook is self-contained: rich explanations, runnable code, and a "Your turn 🧪"
+        challenge at the end. Open them in Google Colab and press play.</p>
+    </div>
+    <div class="lab-grid">
+      <div class="lab reveal" id="lab0">
+        <span class="num">LAB 00</span>
+        <h3>N-gram Language Models</h3>
+        <div class="file">Lab0_Ngram_Language_Models.ipynb</div>
+        <ul>
+          <li>Count bigrams &amp; trigrams on a toy corpus</li>
+          <li>Add-k smoothing and text generation</li>
+          <li>Measure perplexity</li>
+          <li>See sparsity &amp; long-range failure first-hand</li>
+        </ul>
+        <div class="foot">Pure Python · no installs · CPU</div>
+      </div>
+
+      <div class="lab reveal" id="lab1">
+        <span class="num">LAB 01</span>
+        <h3>Word Embeddings</h3>
+        <div class="file">Lab1_Word_Embeddings.ipynb</div>
+        <ul>
+          <li>Train Word2Vec with gensim</li>
+          <li>Nearest neighbours &amp; the king−man+woman analogy</li>
+          <li>Visualize the space with PCA</li>
+          <li>Compare against pretrained GloVe</li>
+        </ul>
+        <div class="foot">gensim · CPU</div>
+      </div>
+
+      <div class="lab reveal" id="lab2">
+        <span class="num">LAB 02</span>
+        <h3>RNNs &amp; LSTMs</h3>
+        <div class="file">Lab2_RNNs_and_LSTMs.ipynb</div>
+        <ul>
+          <li>Char-level language model in PyTorch</li>
+          <li>Swap an RNN cell for an LSTM cell</li>
+          <li>Compare training curves</li>
+          <li>Watch the vanishing gradient by timestep</li>
+        </ul>
+        <div class="foot">PyTorch · <span class="gpu">T4 GPU recommended</span></div>
+      </div>
+
+      <div class="lab reveal" id="lab3">
+        <span class="num">LAB 03</span>
+        <h3>Attention &amp; Transformers</h3>
+        <div class="file">Lab3_Attention_and_Transformers.ipynb</div>
+        <ul>
+          <li>Scaled dot-product attention in NumPy</li>
+          <li>Attention heatmaps &amp; causal masking</li>
+          <li>Multi-head attention + positional encoding</li>
+          <li>Assemble a full Transformer encoder block</li>
+        </ul>
+        <div class="foot">NumPy + PyTorch · CPU ok</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HOW TO RUN ============ -->
+<section class="run">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="tag">Getting Started</span>
+      <h2>Opening a notebook in Colab</h2>
+      <p>No local setup needed. Google Colab gives you a free Python environment (and a GPU for Lab 2).</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal">
+        <h3>Go to Colab</h3>
+        <p>Open <code>colab.research.google.com</code> in your browser and sign in with a Google account.</p>
+      </div>
+      <div class="step reveal">
+        <h3>Upload the notebook</h3>
+        <p>Choose <b>File → Upload notebook</b> and pick one of the four <code>.ipynb</code> files.</p>
+      </div>
+      <div class="step reveal">
+        <h3>Pick a runtime</h3>
+        <p>For Lab 2, set <b>Runtime → Change runtime type → T4 GPU</b>. The others run fine on CPU.</p>
+      </div>
+      <div class="step reveal">
+        <h3>Run all cells</h3>
+        <p>Use <b>Runtime → Run all</b>, read top to bottom, then tackle the <code>Your turn 🧪</code> task.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Teaching package · <b>From N-grams to Transformers</b> — slide deck + 4 Colab labs + this companion.
+  Work through the lineage, then run the code.
+</footer>
+
+<script>
+  // scroll reveal
+  const io = new IntersectionObserver((es)=>{
+    es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  },{threshold:.16});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+  // spine progress tied to scroll through the lineage section
+  const lineage = document.querySelector('.lineage');
+  const prog = document.getElementById('spineProg');
+  const reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  function drawSpine(){
+    if(reduce){ prog.style.strokeDashoffset = 0; return; }
+    const r = lineage.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const total = r.height - vh*0.4;
+    const passed = Math.min(Math.max(vh*0.6 - r.top, 0), total);
+    const pct = total>0 ? passed/total : 0;
+    prog.style.strokeDashoffset = String(100 - pct*100);
+  }
+  drawSpine();
+  window.addEventListener('scroll', drawSpine, {passive:true});
+  window.addEventListener('resize', drawSpine);
+</script>
+</body>
+</html>
