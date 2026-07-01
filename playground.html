@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Language Model Playground · Play with the ideas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#12123A; --navy2:#1B1B52; --stage:#14143F; --violet:#6C5CE7; --cyan:#22D3EE;
+    --light:#F5F5FB; --tint:#EEECFB; --tint2:#E4FAFD; --ink:#1E1B3A;
+    --mute:#6B6B8D; --line:#DAD8EE; --amber:#F59E0B; --rose:#FB7185; --green:#10B981;
+    --dline:#2E2E66;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:'Inter',system-ui,sans-serif; color:var(--ink); background:var(--light);
+    -webkit-font-smoothing:antialiased; line-height:1.55}
+  h1,h2,h3{font-family:'Fraunces',Georgia,serif; line-height:1.1; font-weight:600}
+  .mono{font-family:'JetBrains Mono',monospace}
+  button{font-family:inherit; cursor:pointer}
+  ::selection{background:var(--violet); color:#fff}
+
+  /* ---------- TOP BAR ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:50; background:rgba(18,18,58,.92);
+    backdrop-filter:blur(10px); border-bottom:1px solid var(--dline); color:#fff;
+    padding:.85rem clamp(1rem,4vw,2.5rem); display:flex; align-items:center; gap:1rem; flex-wrap:wrap;
+  }
+  .brand{font-family:'Fraunces',serif; font-weight:600; font-size:1.15rem; display:flex; align-items:center; gap:.6rem; white-space:nowrap}
+  .brand .spark{width:11px; height:11px; border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, var(--cyan), var(--violet)); box-shadow:0 0 14px var(--violet)}
+  .brand em{color:var(--cyan); font-style:normal}
+  .tabs{display:flex; gap:.3rem; flex-wrap:wrap; margin-left:auto}
+  .tab{
+    font-family:'JetBrains Mono',monospace; font-size:.76rem; letter-spacing:.02em; font-weight:500;
+    color:#B7B5DC; background:transparent; border:1px solid transparent; border-radius:9px;
+    padding:.5rem .8rem; transition:all .2s; display:flex; align-items:center; gap:.5rem;
+  }
+  .tab .ix{color:var(--violet); font-weight:700}
+  .tab:hover{color:#fff; background:rgba(255,255,255,.06)}
+  .tab.active{color:#fff; background:var(--violet); border-color:var(--violet)}
+  .tab.active .ix{color:#fff}
+
+  /* ---------- INTRO ---------- */
+  .intro{padding:clamp(2.2rem,5vw,3.4rem) clamp(1rem,5vw,2.5rem) 1rem; max-width:900px; margin:0 auto}
+  .intro .eyebrow{font-family:'JetBrains Mono',monospace; font-size:.72rem; letter-spacing:.24em;
+    text-transform:uppercase; color:var(--violet); margin-bottom:.9rem}
+  .intro h1{font-size:clamp(2rem,5vw,3.2rem); letter-spacing:-.015em}
+  .intro h1 em{font-style:italic; color:var(--violet)}
+  .intro p{margin-top:1rem; color:var(--mute); font-size:1.08rem; max-width:62ch}
+  .intro .note{margin-top:1rem; font-family:'JetBrains Mono',monospace; font-size:.78rem; color:var(--mute);
+    display:inline-flex; align-items:center; gap:.5rem; background:var(--tint); padding:.4rem .8rem; border-radius:999px}
+
+  /* ---------- PANEL SHELL ---------- */
+  main{max-width:1080px; margin:0 auto; padding:1.5rem clamp(1rem,5vw,2.5rem) 5rem}
+  .panel{display:none; animation:fade .4s ease}
+  .panel.active{display:block}
+  @keyframes fade{from{opacity:0; transform:translateY(10px)}to{opacity:1; transform:none}}
+  .phead{margin:1rem 0 1.6rem}
+  .phead .kick{font-family:'JetBrains Mono',monospace; font-size:.74rem; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--cyan); background:var(--navy); display:inline-block;
+    padding:.3rem .7rem; border-radius:7px; margin-bottom:.9rem}
+  .phead h2{font-size:clamp(1.6rem,4vw,2.4rem); letter-spacing:-.01em}
+  .phead p{margin-top:.7rem; color:var(--mute); max-width:66ch; font-size:1.02rem}
+  .phead p b{color:var(--ink)}
+
+  /* cards / stage */
+  .stage{background:var(--stage); border-radius:16px; padding:clamp(1rem,3vw,1.6rem);
+    border:1px solid var(--dline); color:#EDEBFF; overflow:hidden}
+  .stage.tall{min-height:280px}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:1rem}
+  .grid-c{display:grid; grid-template-columns:340px 1fr; gap:1rem}
+  @media(max-width:760px){.grid2,.grid-c{grid-template-columns:1fr}}
+
+  .controls{background:#fff; border:1px solid var(--line); border-radius:16px; padding:1.3rem}
+  .controls h4{font-family:'JetBrains Mono',monospace; font-size:.72rem; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--mute); margin-bottom:1rem; font-weight:600}
+  .field{margin-bottom:1.1rem}
+  .field:last-child{margin-bottom:0}
+  .field label{display:block; font-size:.82rem; font-weight:600; color:var(--ink); margin-bottom:.45rem;
+    display:flex; justify-content:space-between; align-items:baseline}
+  .field label .val{font-family:'JetBrains Mono',monospace; color:var(--violet); font-size:.82rem}
+  select, input[type=text]{
+    width:100%; font-family:'JetBrains Mono',monospace; font-size:.86rem; color:var(--ink);
+    background:var(--light); border:1px solid var(--line); border-radius:9px; padding:.55rem .7rem;
+  }
+  select:focus, input:focus{outline:2px solid var(--violet); outline-offset:1px}
+  input[type=range]{width:100%; accent-color:var(--violet); height:22px}
+  .btn{background:var(--violet); color:#fff; border:none; border-radius:9px; padding:.6rem 1rem;
+    font-weight:600; font-size:.86rem; transition:transform .15s, background .2s}
+  .btn:hover{background:#5a4bd4} .btn:active{transform:scale(.97)}
+  .btn.ghost{background:transparent; color:var(--violet); border:1px solid var(--line)}
+  .btn.ghost:hover{background:var(--tint)}
+  .btn.cyan{background:var(--cyan); color:var(--navy)} .btn.cyan:hover{background:#0fbcd6}
+  .btnrow{display:flex; gap:.55rem; flex-wrap:wrap}
+  .seg{display:inline-flex; background:var(--light); border:1px solid var(--line); border-radius:10px; padding:.2rem; gap:.2rem}
+  .seg button{border:none; background:transparent; padding:.45rem .8rem; border-radius:7px; font-size:.8rem;
+    font-weight:600; color:var(--mute); font-family:'JetBrains Mono',monospace}
+  .seg button.on{background:var(--violet); color:#fff}
+  .chips{display:flex; gap:.4rem; flex-wrap:wrap}
+  .chip{font-family:'JetBrains Mono',monospace; font-size:.76rem; padding:.35rem .6rem; border-radius:7px;
+    background:var(--tint); color:var(--violet); border:1px solid transparent; font-weight:600}
+  .chip:hover{border-color:var(--violet)}
+
+  .readout{font-family:'JetBrains Mono',monospace; font-size:.82rem; color:#B7B5DC; margin-top:1rem;
+    background:var(--navy); border-radius:11px; padding:.9rem 1rem; border:1px solid var(--dline); line-height:1.6}
+  .readout b{color:var(--cyan); font-weight:600}
+  .readout .good{color:var(--green)} .readout .bad{color:var(--rose)} .readout .warn{color:var(--amber)}
+
+  /* prob bars (ngram + attention) */
+  .pbar{display:flex; align-items:center; gap:.7rem; margin:.34rem 0; font-family:'JetBrains Mono',monospace; font-size:.82rem}
+  .pbar .lab{width:88px; text-align:right; color:#EDEBFF; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .pbar .track{flex:1; height:14px; background:rgba(255,255,255,.08); border-radius:7px; overflow:hidden}
+  .pbar .fill{height:100%; border-radius:7px; background:linear-gradient(90deg,var(--violet),var(--cyan));
+    transition:width .5s cubic-bezier(.2,.8,.2,1)}
+  .pbar .pv{width:46px; color:#8F8DB8}
+  .pbar.pick{cursor:pointer} .pbar.pick:hover .lab{color:var(--cyan)}
+
+  /* generated text */
+  .gentext{font-family:'JetBrains Mono',monospace; font-size:.95rem; line-height:1.9; color:#EDEBFF;
+    min-height:3.4em; letter-spacing:.01em}
+  .gentext .tok{padding:.05rem .1rem; border-radius:4px}
+  .gentext .new{background:var(--violet); color:#fff; animation:pop .4s ease}
+  .gentext .cur{color:var(--cyan)}
+  @keyframes pop{from{transform:scale(1.3)}to{transform:scale(1)}}
+
+  canvas{display:block; max-width:100%}
+  .cap{font-family:'JetBrains Mono',monospace; font-size:.72rem; color:#8F8DB8; margin-top:.7rem; text-align:center}
+
+  /* token row for attention */
+  .tokrow{display:flex; flex-wrap:wrap; gap:.4rem; margin-bottom:1rem}
+  .tokrow .t{font-family:'JetBrains Mono',monospace; font-size:.86rem; padding:.4rem .6rem; border-radius:8px;
+    background:var(--navy2); color:#CFCDEC; border:1px solid var(--dline); transition:all .2s}
+  .tokrow .t:hover{border-color:var(--cyan)}
+  .tokrow .t.q{background:var(--violet); color:#fff; border-color:var(--violet)}
+
+  /* transformer diagram */
+  .tf-wrap{display:grid; grid-template-columns:1fr 1fr; gap:1rem}
+  @media(max-width:760px){.tf-wrap{grid-template-columns:1fr}}
+  .tf-block{cursor:pointer}
+  .tf-detail{background:#fff; border:1px solid var(--line); border-radius:14px; padding:1.3rem; min-height:200px}
+  .tf-detail h4{font-family:'Fraunces',serif; font-size:1.25rem; margin-bottom:.4rem; color:var(--ink)}
+  .tf-detail .shape{font-family:'JetBrains Mono',monospace; font-size:.78rem; color:var(--violet);
+    background:var(--tint); display:inline-block; padding:.25rem .55rem; border-radius:6px; margin-bottom:.8rem}
+  .tf-detail p{color:var(--mute); font-size:.95rem} .tf-detail p+p{margin-top:.6rem}
+
+  /* hidden state / gate bars */
+  .vec{display:flex; gap:.3rem; align-items:flex-end; height:90px; margin:.5rem 0}
+  .vec .cell{flex:1; background:linear-gradient(180deg,var(--violet),var(--cyan)); border-radius:4px 4px 0 0;
+    min-height:2px; transition:height .35s cubic-bezier(.2,.8,.2,1); position:relative}
+  .vec .cell.neg{background:linear-gradient(180deg,var(--rose),#f9a8b4)}
+  .gatebars{display:flex; flex-direction:column; gap:.7rem; margin-top:.4rem}
+  .gate{display:flex; align-items:center; gap:.8rem}
+  .gate .gl{width:120px; font-family:'JetBrains Mono',monospace; font-size:.78rem; color:#CFCDEC}
+  .gate .gt{flex:1; height:16px; background:rgba(255,255,255,.08); border-radius:8px; overflow:hidden}
+  .gate .gf{height:100%; border-radius:8px; transition:width .4s}
+  .gate .gv{width:44px; font-family:'JetBrains Mono',monospace; font-size:.78rem; color:#8F8DB8}
+
+  .foot{max-width:1080px; margin:0 auto; padding:1rem clamp(1rem,5vw,2.5rem) 3rem; color:var(--mute);
+    font-family:'JetBrains Mono',monospace; font-size:.76rem; text-align:center}
+  .hidden{display:none!important}
+
+  /* ---------- EXPLAINER ---------- */
+  details.explain{background:#fff; border:1px solid var(--line); border-radius:16px; margin-top:1.5rem; overflow:hidden}
+  details.explain>summary{cursor:pointer; list-style:none; padding:1.05rem 1.3rem;
+    font-family:'JetBrains Mono',monospace; font-size:.82rem; font-weight:600; letter-spacing:.03em;
+    color:var(--ink); display:flex; align-items:center; gap:.75rem; user-select:none}
+  details.explain>summary::-webkit-details-marker{display:none}
+  details.explain>summary::before{content:'+'; display:inline-flex; align-items:center; justify-content:center;
+    width:22px; height:22px; border-radius:7px; background:var(--tint); color:var(--violet); font-weight:700; flex:none}
+  details.explain[open]>summary::before{content:'\2212'}
+  details.explain[open]>summary{border-bottom:1px solid var(--line)}
+  details.explain>summary:hover{color:var(--violet)}
+  .explain .body{padding:1.3rem 1.4rem 1.5rem; color:#3a3560; font-size:.95rem; line-height:1.68}
+  .explain .body h5{font-family:'Fraunces',serif; font-size:1.08rem; color:var(--ink); margin:1.3rem 0 .5rem; font-weight:600}
+  .explain .body h5:first-child{margin-top:0}
+  .explain ol{margin:.2rem 0 0; padding:0; counter-reset:e; list-style:none}
+  .explain ol>li{position:relative; padding-left:2.3rem; margin-bottom:.85rem}
+  .explain ol>li::before{counter-increment:e; content:counter(e); position:absolute; left:0; top:.05rem;
+    width:1.6rem; height:1.6rem; border-radius:8px; background:var(--navy); color:#fff;
+    font-family:'JetBrains Mono',monospace; font-size:.76rem; font-weight:600;
+    display:flex; align-items:center; justify-content:center}
+  .explain b{color:var(--ink); font-weight:600}
+  .explain .f{font-family:'JetBrains Mono',monospace; background:var(--navy); color:#EDEBFF;
+    padding:.35rem .65rem; border-radius:7px; font-size:.86em; display:inline-block; margin:.3rem 0}
+  .explain .tip{background:var(--tint2); border-left:3px solid var(--cyan); border-radius:0 9px 9px 0;
+    padding:.7rem .9rem; margin:.7rem 0; font-size:.9rem; color:#334}
+  .explain .ctrls{margin-top:1.2rem; padding-top:1rem; border-top:1px dashed var(--line)}
+  .explain .ctrls .row{display:flex; gap:.7rem; margin:.4rem 0; font-size:.9rem; align-items:baseline}
+  .explain .ctrls .k{font-family:'JetBrains Mono',monospace; color:var(--violet); font-weight:600;
+    min-width:130px; flex:none}
+
+  @media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="spark"></span>LM&nbsp;<em>Playground</em></div>
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="ngram"><span class="ix">01</span> N-grams</button>
+    <button class="tab" data-tab="embed"><span class="ix">02</span> Word2Vec · GloVe</button>
+    <button class="tab" data-tab="rnn"><span class="ix">03</span> RNN · LSTM</button>
+    <button class="tab" data-tab="attn"><span class="ix">04</span> Attention</button>
+    <button class="tab" data-tab="tf"><span class="ix">05</span> Transformer</button>
+  </nav>
+</div>
+
+<section class="intro">
+  <div class="eyebrow">Interactive companion · nothing leaves your browser</div>
+  <h1>Play with the <em>machinery</em> of language models</h1>
+  <p>Five hands-on instruments — one per idea. Turn the knobs, click the tokens, and watch the actual
+    math respond in real time. Every number below is computed live from small toy models built right into this page.</p>
+  <div class="note">Tip: work left to right — each idea answers a limitation of the one before it.</div>
+</section>
+
+<main>
+  <!-- ============================================================ 01 N-GRAM -->
+  <section class="panel active" id="p-ngram">
+    <div class="phead">
+      <span class="kick">01 · Counting words</span>
+      <h2>N-gram next-word predictor</h2>
+      <p>An n-gram model predicts the next word using only the last <b>n−1</b> words, estimated by counting.
+        Change the order and watch coherence rise — until the context has never been seen and the model has nothing to say.</p>
+    </div>
+    <div class="grid-c">
+      <div class="controls">
+        <h4>Controls</h4>
+        <div class="field">
+          <label>Context order (n)</label>
+          <div class="seg" id="ng-order">
+            <button data-n="1">Unigram</button>
+            <button data-n="2" class="on">Bigram</button>
+            <button data-n="3">Trigram</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Add-k smoothing <span class="val" id="ng-kval">0.00</span></label>
+          <input type="range" id="ng-k" min="0" max="1" step="0.05" value="0">
+        </div>
+        <div class="field">
+          <label>Start the sentence with</label>
+          <div class="chips" id="ng-seeds"></div>
+        </div>
+        <div class="field btnrow">
+          <button class="btn" id="ng-step">Predict &amp; add word ›</button>
+          <button class="btn ghost" id="ng-reset">Reset</button>
+        </div>
+        <div class="field">
+          <label>Auto-write</label>
+          <div class="btnrow">
+            <button class="btn cyan" id="ng-auto">Write 12 words</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="stage">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:.72rem; color:#8F8DB8; margin-bottom:.6rem">GENERATED TEXT</div>
+          <div class="gentext" id="ng-text"></div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:.72rem; color:#8F8DB8; margin:1.2rem 0 .5rem">
+            NEXT-WORD DISTRIBUTION <span id="ng-ctx" style="color:var(--cyan)"></span></div>
+          <div id="ng-bars"></div>
+        </div>
+        <div class="readout" id="ng-read">Pick a starter word, then press <b>Predict</b>.</div>
+      </div>
+    </div>
+    <details class="explain">
+      <summary>How it works, step by step</summary>
+      <div class="body">
+        <ol>
+          <li><b>Tokenize and count.</b> The training text is split into words, then we tally how often each
+            context is followed by each next word. A <b>bigram</b> stores counts of (previous word → next word);
+            a <b>trigram</b> uses the previous two words as context.</li>
+          <li><b>Turn counts into probabilities.</b> The chance of a word given its context is just its share of
+            that context's continuations: <span class="f">P(next | context) = count(context, next) / count(context)</span>
+            These are the bars you see.</li>
+          <li><b>The Markov shortcut.</b> Conditioning on the entire sentence history is impossible to estimate, so
+            we assume only the last <b>n−1</b> words matter. <b>Unigram (n=1)</b> ignores context entirely — pure word
+            frequency, so the output is word salad. <b>Bigram</b> looks back one word; <b>trigram</b> looks back two and
+            reads far more fluently.</li>
+          <li><b>Add-k smoothing (the slider).</b> Raw counting assigns probability <b>zero</b> to any pair never seen
+            in training — and one zero makes an entire sentence's probability zero. Add-k fixes this by pretending every
+            word in the vocabulary was seen <b>k</b> extra times after every context:
+            <span class="f">P(next | context) = (count(context, next) + k) / (count(context) + k · V)</span>
+            where <b>V</b> is the vocabulary size. So <b>k = 0</b> is pure counts (sharpest, but unseen contexts give
+            nothing); <b>k = 1</b> is "Laplace smoothing," giving every word a floor and flattening the distribution;
+            a small <b>k ≈ 0.1–0.3</b> keeps rare continuations possible without washing out the real signal.
+            <div class="tip">Try it: set the order to <b>Trigram</b>, generate until you hit a red "unseen context,"
+              then raise the add-k slider — options appear because every word now has a nonzero floor.</div></li>
+          <li><b>Generate text.</b> Sample the next word from the distribution, append it, slide the context window
+            forward by one, and repeat.</li>
+          <li><b>Where it breaks.</b> Most possible contexts are never seen (sparsity), the model forgets anything
+            older than n−1 words, and every word is an atomic symbol with no sense of similarity — "cat" and "dog"
+            are as unrelated as "cat" and "the." That last problem is what word embeddings (Lab 02) solve.</li>
+        </ol>
+        <div class="ctrls">
+          <div class="row"><span class="k">Order (n)</span><span>how many previous words the prediction is conditioned on.</span></div>
+          <div class="row"><span class="k">Add-k</span><span>the smoothing floor added to every count.</span></div>
+          <div class="row"><span class="k">Predict / Write 12</span><span>sample one word, or auto-generate a short sequence.</span></div>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============================================================ 02 EMBEDDINGS -->
+  <section class="panel" id="p-embed">
+    <div class="phead">
+      <span class="kick">02 · Meaning as geometry</span>
+      <h2>Word2Vec &amp; GloVe explorer</h2>
+      <p>Words become vectors positioned so that similar meanings sit close together. That geometry lets you do
+        <b>arithmetic on meaning</b> — and reveals the difference between Word2Vec (predict local context) and
+        GloVe (factorize global co-occurrence counts).</p>
+    </div>
+    <div class="seg" id="emb-mode" style="margin-bottom:1rem">
+      <button data-m="w2v" class="on">Vector arithmetic</button>
+      <button data-m="nn">Nearest neighbours</button>
+      <button data-m="glove">GloVe co-occurrence</button>
+    </div>
+
+    <!-- arithmetic + nn share the scatter -->
+    <div class="grid-c" id="emb-vec">
+      <div class="controls">
+        <h4 id="emb-ctrl-title">Analogy: A − B + C</h4>
+        <div id="emb-analogy">
+          <div class="field"><label>A (positive)</label><select id="emb-a"></select></div>
+          <div class="field"><label>B (negative)</label><select id="emb-b"></select></div>
+          <div class="field"><label>C (positive)</label><select id="emb-c"></select></div>
+          <div class="field"><label>Try a classic</label>
+            <div class="chips" id="emb-presets"></div>
+          </div>
+        </div>
+        <div id="emb-nnctrl" class="hidden">
+          <div class="field"><label>Word</label><select id="emb-word"></select></div>
+          <div class="field"><label>Neighbours are ranked by cosine similarity.</label></div>
+        </div>
+        <div class="readout" id="emb-read"></div>
+      </div>
+      <div>
+        <div class="stage"><canvas id="emb-canvas" width="640" height="440"></canvas>
+          <div class="cap">2D projection (PCA) of the toy embedding space · hover to read a word</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- glove -->
+    <div class="grid-c hidden" id="emb-glove">
+      <div class="controls">
+        <h4>Co-occurrence matrix</h4>
+        <p style="font-size:.9rem; color:var(--mute); margin-bottom:1rem">GloVe starts from how often words appear
+          near each other across the whole corpus, then learns vectors whose dot products reconstruct these counts.
+          Hover a cell to read the pair.</p>
+        <div class="readout" id="glove-read">Hover the heatmap to inspect a word pair.</div>
+      </div>
+      <div>
+        <div class="stage"><canvas id="glove-canvas" width="620" height="620"></canvas>
+          <div class="cap">Rows &amp; columns are words · brighter = they co-occur more often</div>
+        </div>
+      </div>
+    </div>
+    <details class="explain">
+      <summary>How it works, step by step</summary>
+      <div class="body">
+        <ol>
+          <li><b>Words become vectors.</b> Every word is a point in a multi-dimensional space. In this toy the
+            coordinates are readable features (royalty, gender, tense, animal-type…); real Word2Vec/GloVe learn the
+            coordinates from data, but the geometry behaves the same way.</li>
+          <li><b>Similarity is an angle.</b> Two words are "close" when their vectors point the same way, measured by
+            cosine similarity: <span class="f">cos(a, b) = (a · b) / (|a| · |b|)</span> 1 means identical direction,
+            0 means unrelated. "Nearest neighbours" mode just ranks every word by this score.</li>
+          <li><b>Relationships are directions.</b> Because meaning is geometric, consistent relationships become
+            consistent vectors — the step from <b>man→woman</b> is the same direction as <b>king→queen</b>.</li>
+          <li><b>Analogy = vector arithmetic.</b> <span class="f">king − man + woman ≈ queen</span> Subtracting
+            <b>man</b> from <b>king</b> isolates the "royalty" direction; adding <b>woman</b> then lands on the
+            royal-and-female point. The dashed <b>parallelogram</b> on the plot is exactly this: the two dashed edges
+            are parallel because the relationship is the same.</li>
+          <li><b>The 2D picture (PCA).</b> The vectors have many dimensions, which we can't see. PCA finds the two
+            directions along which the words spread out the most and projects everything onto them — so clusters
+            (royalty, countries, animals, verbs) become visible on a flat screen.
+            <div class="tip">Hover any point to read its label; the involved words in an analogy or neighbour search
+              are enlarged and colored by cluster.</div></li>
+          <li><b>Word2Vec vs GloVe.</b> Same destination, different training signal. <b>Word2Vec</b> slides a window
+            over text and learns vectors by <b>predicting</b> each word's neighbours (local context). <b>GloVe</b> first
+            builds one global table of how often each pair co-occurs (the heatmap), then learns vectors whose dot
+            product reconstructs the <b>log of those counts</b>. Local prediction vs. global counting — both yield the
+            same useful geometry.</li>
+        </ol>
+        <div class="ctrls">
+          <div class="row"><span class="k">A − B + C</span><span>the analogy to solve; the result is the nearest word to that computed point.</span></div>
+          <div class="row"><span class="k">Nearest neighbours</span><span>rank all words by cosine similarity to one word.</span></div>
+          <div class="row"><span class="k">GloVe co-occurrence</span><span>inspect the global count table GloVe factorizes.</span></div>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============================================================ 03 RNN/LSTM -->
+  <section class="panel" id="p-rnn">
+    <div class="phead">
+      <span class="kick">03 · Reading in order</span>
+      <h2>RNN &amp; LSTM lab</h2>
+      <p>A recurrent net folds each new token into a hidden state that carries the past. It works — until the past
+        gets too far away and the gradient <b>vanishes</b>. LSTMs add gates to protect memory. Explore all three below.</p>
+    </div>
+    <div class="seg" id="rnn-mode" style="margin-bottom:1rem">
+      <button data-m="step" class="on">Hidden-state stepper</button>
+      <button data-m="gate">LSTM gates</button>
+      <button data-m="grad">Vanishing gradient</button>
+    </div>
+
+    <!-- stepper -->
+    <div id="rnn-step">
+      <div class="grid-c">
+        <div class="controls">
+          <h4>RNN cell · hₜ = tanh(Wₓxₜ + Wₕhₜ₋₁)</h4>
+          <div class="field"><label>Input sequence</label>
+            <div class="chips" id="rnn-seqs"></div>
+          </div>
+          <div class="field btnrow">
+            <button class="btn" id="rnn-stepbtn">Feed next token ›</button>
+            <button class="btn ghost" id="rnn-resetbtn">Reset</button>
+          </div>
+          <div class="readout" id="rnn-read">The hidden state (6 numbers) updates with every token. Watch it drift as the sequence unfolds.</div>
+        </div>
+        <div>
+          <div class="stage">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:.75rem; color:#8F8DB8; margin-bottom:.4rem">
+              PROCESSED: <span id="rnn-processed" style="color:var(--cyan)"></span></div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:.72rem; color:#8F8DB8; margin:1rem 0 .3rem">HIDDEN STATE hₜ</div>
+            <div class="vec" id="rnn-vec"></div>
+            <div class="cap">green/blue = positive · pink = negative · height = magnitude</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- gates -->
+    <div id="rnn-gate" class="hidden">
+      <div class="grid-c">
+        <div class="controls">
+          <h4>LSTM gates react to the input</h4>
+          <div class="field">
+            <label>Input signal xₜ <span class="val" id="lstm-xval">0.0</span></label>
+            <input type="range" id="lstm-x" min="-3" max="3" step="0.1" value="0.5">
+          </div>
+          <div class="field">
+            <label>Previous cell state cₜ₋₁ <span class="val" id="lstm-cval">1.0</span></label>
+            <input type="range" id="lstm-c" min="-2" max="2" step="0.1" value="1">
+          </div>
+          <div class="readout" id="lstm-read"></div>
+        </div>
+        <div>
+          <div class="stage">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:.72rem; color:#8F8DB8; margin-bottom:.8rem">GATE ACTIVATIONS (sigmoid → 0…1)</div>
+            <div class="gatebars" id="lstm-gates"></div>
+            <div class="cap" style="margin-top:1.2rem">forget decides what to erase · input what to write · output what to expose</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- gradient -->
+    <div id="rnn-grad" class="hidden">
+      <div class="grid-c">
+        <div class="controls">
+          <h4>How far can the gradient reach?</h4>
+          <div class="field">
+            <label>RNN recurrent weight |w| <span class="val" id="grad-wval">0.70</span></label>
+            <input type="range" id="grad-w" min="0.3" max="1.15" step="0.01" value="0.7">
+          </div>
+          <div class="field">
+            <label>Sequence length T <span class="val" id="grad-tval">30</span></label>
+            <input type="range" id="grad-t" min="5" max="60" step="1" value="30">
+          </div>
+          <div class="readout" id="grad-read"></div>
+        </div>
+        <div>
+          <div class="stage"><canvas id="grad-canvas" width="620" height="360"></canvas>
+            <div class="cap">gradient magnitude vs. how many steps back · RNN (violet) decays, LSTM highway (cyan) holds</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <details class="explain">
+      <summary>How it works, step by step</summary>
+      <div class="body">
+        <h5>The recurrence (stepper)</h5>
+        <ol>
+          <li><b>Read one token at a time.</b> The network keeps a <b>hidden state</b> h — a fixed-size vector that
+            summarizes everything seen so far.</li>
+          <li><b>Fold each token in.</b> At every step the new state combines the current input with the previous state
+            through the <b>same</b> weights: <span class="f">hₜ = tanh(Wₓ xₜ + Wₕ hₜ₋₁ + b)</span> The bars are those 6
+            numbers; watch them drift as words arrive. The whole past is squeezed into this one vector — that's the
+            bottleneck attention later removes.</li>
+        </ol>
+        <h5>Why the gradient vanishes</h5>
+        <ol>
+          <li><b>Learning long links means reaching back.</b> To connect a word to something many steps earlier, the
+            training error has to travel back through every step in between.</li>
+          <li><b>Each step multiplies by ≈ the recurrent weight.</b> So the signal scales like
+            <span class="f">|w|^(distance)</span> If <b>|w| &lt; 1</b> it shrinks exponentially and the model effectively
+            forgets anything beyond a few steps; if <b>|w| &gt; 1</b> it explodes instead. The chart shows exactly where
+            the violet RNN curve drops below a usable level.</li>
+        </ol>
+        <h5>How LSTM gates fix it</h5>
+        <ol>
+          <li><b>A protected cell state.</b> The LSTM adds a memory line <b>c</b> alongside h, guarded by three gates,
+            each a sigmoid squashing its input to a 0…1 "how much" valve.</li>
+          <li><b>Forget, then write.</b> <span class="f">cₜ = fₜ · cₜ₋₁ + iₜ · g̃ₜ</span> The <b>forget</b> gate fₜ
+            decides how much old memory to keep; the <b>input</b> gate iₜ decides how much of the new candidate g̃ₜ to
+            add.</li>
+          <li><b>Then expose.</b> <span class="f">hₜ = oₜ · tanh(cₜ)</span> The <b>output</b> gate oₜ decides how much of
+            the cell to reveal as this step's hidden state.</li>
+          <li><b>The highway.</b> When forget ≈ 1 and input ≈ 0, the cell passes through unchanged — so gradients flow
+            across many steps without shrinking (the flat cyan line). That's why LSTMs remember far longer than plain
+            RNNs.
+            <div class="tip">Drag the input slider in "LSTM gates" and watch the gates react; push forget toward 1 to
+              see memory preserved.</div></li>
+        </ol>
+        <div class="ctrls">
+          <div class="row"><span class="k">Sequence + step</span><span>feed tokens one by one and watch the hidden state update.</span></div>
+          <div class="row"><span class="k">xₜ / cₜ₋₁ sliders</span><span>change the input and prior memory to see gate responses.</span></div>
+          <div class="row"><span class="k">|w| and T</span><span>recurrent weight and sequence length for the gradient-reach chart.</span></div>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============================================================ 04 ATTENTION -->
+  <section class="panel" id="p-attn">
+    <div class="phead">
+      <span class="kick">04 · Look anywhere</span>
+      <h2>Self-attention visualizer</h2>
+      <p>Instead of squeezing everything through one state, attention lets each word look directly at every other word.
+        Click a word to make it the <b>query</b> and see how much it pulls from each <b>key</b> — computed as scaled
+        dot-products passed through softmax.</p>
+    </div>
+    <div class="grid-c">
+      <div class="controls">
+        <h4>Controls</h4>
+        <div class="field"><label>Example sentence</label>
+          <div class="chips" id="attn-sents"></div>
+        </div>
+        <div class="field">
+          <label>Scaling 1/√dₖ <span class="val" id="attn-sval">on</span></label>
+          <div class="seg" id="attn-scale">
+            <button data-s="1" class="on">Scaled</button>
+            <button data-s="0">Unscaled</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Causal mask (can't look ahead)</label>
+          <div class="seg" id="attn-mask">
+            <button data-k="0" class="on">Off</button>
+            <button data-k="1">On</button>
+          </div>
+        </div>
+        <div class="readout" id="attn-read">Click any word below to set it as the query.</div>
+      </div>
+      <div>
+        <div class="stage">
+          <div class="tokrow" id="attn-tokens"></div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:.72rem; color:#8F8DB8; margin:.4rem 0 .5rem">
+            ATTENTION FROM <span id="attn-qword" style="color:var(--violet)"></span> →</div>
+          <div id="attn-bars"></div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:.72rem; color:#8F8DB8; margin:1.2rem 0 .5rem">FULL ATTENTION MATRIX</div>
+          <canvas id="attn-canvas" width="620" height="620"></canvas>
+          <div class="cap">row = query word · column = key word · brighter = more attention</div>
+        </div>
+      </div>
+    </div>
+    <details class="explain">
+      <summary>How it works, step by step</summary>
+      <div class="body">
+        <ol>
+          <li><b>Three roles per word.</b> Each token projects into a <b>Query</b> (what am I looking for?), a
+            <b>Key</b> (what do I offer?), and a <b>Value</b> (what I'll pass along). Real Transformers learn separate
+            projection matrices for these; here we use the embeddings directly so every number is transparent.</li>
+          <li><b>Score every pair.</b> For the chosen query word, take the dot product with every key — a higher dot
+            product means the two words are more relevant to each other: <span class="f">score(i, j) = qᵢ · kⱼ</span></li>
+          <li><b>Scale by √dₖ.</b> <span class="f">score / √dₖ</span> Dividing by the square root of the key dimension
+            keeps the numbers from growing huge as dimensions add up, which would push softmax into an all-or-nothing
+            spike. Toggle scaling off to watch the weights sharpen.</li>
+          <li><b>Softmax into weights.</b> The scores are turned into a probability distribution that sums to 1 — these
+            are the <b>attention weights</b> (the bars and the heatmap row).
+            <span class="f">softmax(QKᵀ / √dₖ)</span></li>
+          <li><b>Blend the values.</b> The query's output is the weighted sum of every Value: <span class="f">out =
+            Σ weightⱼ · valueⱼ</span> So the new vector for "it" literally becomes a mixture dominated by whatever it
+            attended to — that's how the model resolves what "it" refers to.
+            <div class="tip">Click <b>it</b> in the tired-animal sentence: most of its attention lands on
+              <b>animal</b>. Switch to the trophy/suitcase sentence and "it" points to a different word.</div></li>
+          <li><b>Causal mask.</b> When generating text left to right, a word must not peek at future words. The mask
+            sets those scores to −∞ so softmax gives them exactly 0 weight — the upper triangle of the heatmap goes
+            dark.</li>
+        </ol>
+        <div class="ctrls">
+          <div class="row"><span class="k">Click a token</span><span>set it as the query and see where its attention goes.</span></div>
+          <div class="row"><span class="k">Scaled / Unscaled</span><span>toggle the 1/√dₖ factor and watch sharpness change.</span></div>
+          <div class="row"><span class="k">Causal mask</span><span>forbid looking ahead, as in text generation.</span></div>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============================================================ 05 TRANSFORMER -->
+  <section class="panel" id="p-tf">
+    <div class="phead">
+      <span class="kick">05 · Attention is all you need</span>
+      <h2>Transformer architecture, block by block</h2>
+      <p>A Transformer drops recurrence entirely and stacks attention + feed-forward blocks that run in parallel.
+        <b>Click any block</b> to see what it does and how the tensor shape changes as data flows up the stack.</p>
+    </div>
+    <div class="tf-wrap">
+      <div class="stage tall"><canvas id="tf-canvas" width="520" height="620"></canvas></div>
+      <div>
+        <div class="tf-detail" id="tf-detail">
+          <h4>Click a block to explore</h4>
+          <p>The diagram shows one encoder layer. Data enters at the bottom as token embeddings and flows upward;
+            residual connections (the side arrows) let each block add to the stream rather than replace it.</p>
+        </div>
+        <div class="stage" style="margin-top:1rem">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:.72rem; color:#8F8DB8; margin-bottom:.6rem">
+            POSITIONAL ENCODING · hover a position</div>
+          <canvas id="pe-canvas" width="520" height="200"></canvas>
+          <div class="cap" id="pe-cap">Each column is a token position · each row a dimension · sinusoids of different frequencies give every position a unique fingerprint</div>
+        </div>
+      </div>
+    </div>
+    <details class="explain">
+      <summary>How it works, step by step</summary>
+      <div class="body">
+        <ol>
+          <li><b>Embed the tokens.</b> Each input word becomes a vector of size d_model — the same "words as geometry"
+            idea from Lab 02.</li>
+          <li><b>Add positional encoding.</b> Attention treats a sentence as a <b>set</b>, with no inherent order, so we
+            add a position signal to every embedding. Each position gets a unique pattern of <b>sines and cosines at
+            different frequencies</b> (the heatmap). Nearby positions have similar patterns, letting the model reason
+            about distance — now "dog bites man" and "man bites dog" look different.</li>
+          <li><b>Multi-head self-attention.</b> Every token attends to every other token (exactly Lab 04), run in
+            several parallel <b>heads</b> that each learn a different kind of relationship. Because it's all matrix
+            multiplication, the whole sequence is processed at once — no step-by-step recurrence.</li>
+          <li><b>Add &amp; Norm.</b> A <b>residual connection</b> adds the block's input back to its output, then
+            LayerNorm rescales the result. Residuals mean each layer only learns a small correction, which is what lets
+            very deep stacks train at all.</li>
+          <li><b>Feed-forward network.</b> A small MLP is applied to each position independently, usually expanding to a
+            larger width and back. Attention mixes information <b>across</b> tokens; this mixes features <b>within</b>
+            each token.</li>
+          <li><b>Stack N identical layers.</b> The output has the same shape as the input, so you can stack these blocks
+            6, 12, or 96 deep. That depth builds up abstraction and is the backbone of BERT, GPT, and essentially every
+            modern LLM.
+            <div class="tip">Click any block in the diagram to read what it does and how the tensor shape changes; hover
+              the positional-encoding heatmap to inspect one position's fingerprint.</div></li>
+        </ol>
+        <div class="ctrls">
+          <div class="row"><span class="k">Click a block</span><span>see its role and the data shape flowing through it.</span></div>
+          <div class="row"><span class="k">Hover the heatmap</span><span>read the sine/cosine pattern for a given position.</span></div>
+        </div>
+      </div>
+    </details>
+  </section>
+</main>
+
+<div class="foot">
+  Toy models, real math — built to build intuition, not to win benchmarks.
+  Pair with the four Colab labs to go from playing to coding.
+</div>
+
+<script>
+/* ================= LM PLAYGROUND ENGINE ================= */
+'use strict';
+const $ = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const clamp = (x,a,b)=>Math.max(a,Math.min(b,x));
+const CY='#22D3EE', VI='#6C5CE7', RO='#FB7185', GR='#10B981', MU='#8F8DB8';
+
+function softmax(a){const m=Math.max(...a); const e=a.map(x=>Math.exp(x-m)); const s=e.reduce((p,c)=>p+c,0); return e.map(x=>x/s);}
+function dot(a,b){let s=0;for(let i=0;i<a.length;i++)s+=a[i]*b[i];return s;}
+function norm(a){return Math.sqrt(dot(a,a))||1e-9;}
+function cosine(a,b){return dot(a,b)/(norm(a)*norm(b));}
+function add(a,b){return a.map((x,i)=>x+b[i]);}
+function sub(a,b){return a.map((x,i)=>x-b[i]);}
+function sigmoid(x){return 1/(1+Math.exp(-x));}
+
+/* ---------- TABS ---------- */
+$$('#tabs .tab').forEach(t=>t.addEventListener('click',()=>{
+  $$('#tabs .tab').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  $$('.panel').forEach(p=>p.classList.remove('active'));
+  $('#p-'+t.dataset.tab).classList.add('active');
+  if(t.dataset.tab==='embed') embDraw();
+  if(t.dataset.tab==='attn') attnDraw();
+  if(t.dataset.tab==='rnn' && rnnMode==='grad') gradDraw();
+  if(t.dataset.tab==='tf'){ tfDraw(); peDraw(); }
+}));
+
+/* ============================================================ 01 N-GRAM ============================================================ */
+const CORPUS = `the cat sat on the mat . the cat saw the dog . the dog ran to the park .
+a dog sat on the grass . the cat ran to the mat . a bird sat on the tree .
+the bird saw the cat . the cat chased the bird . the dog chased the cat .
+the child ran to the park . a child saw the dog . the child fed the cat .
+the cat drank the milk . the dog drank the water . a bird ate the seed .
+the sun rose over the hill . the moon rose over the sea . the child ran home .
+the cat slept on the mat . the dog slept on the grass . a bird flew over the tree .
+the cat and the dog played . the child and the dog ran . the sun set over the hill .`;
+const NG_TOKENS = CORPUS.toLowerCase().split(/\s+/).filter(Boolean);
+const NG_VOCAB = [...new Set(NG_TOKENS)];
+// build counts
+const ngCounts = {1:{}, 2:{}, 3:{}};
+(function(){
+  for(let i=0;i<NG_TOKENS.length;i++){
+    const u=NG_TOKENS[i];
+    ngCounts[1][''] = ngCounts[1][''] || {}; ngCounts[1][''][u]=(ngCounts[1][''][u]||0)+1;
+    if(i>=1){const c=NG_TOKENS[i-1]; (ngCounts[2][c]=ngCounts[2][c]||{})[u]=(ngCounts[2][c][u]||0)+1;}
+    if(i>=2){const c=NG_TOKENS[i-2]+' '+NG_TOKENS[i-1]; (ngCounts[3][c]=ngCounts[3][c]||{})[u]=(ngCounts[3][c][u]||0)+1;}
+  }
+})();
+let ngOrder=2, ngK=0, ngSeq=[];
+const NG_SEEDS=['the','a','dog','cat','child','sun'];
+
+function ngContextKey(){
+  if(ngOrder===1) return '';
+  const need=ngOrder-1;
+  if(ngSeq.length<need) return null;
+  return ngSeq.slice(-need).join(' ');
+}
+function ngDist(){
+  const key=ngContextKey();
+  if(key===null) return null;
+  const row=ngCounts[ngOrder][key];
+  const V=NG_VOCAB.length;
+  const dist=[];
+  if(!row && ngK===0) return {key, empty:true, dist:[]};
+  for(const w of NG_VOCAB){
+    const c=(row&&row[w])||0;
+    const total=row?Object.values(row).reduce((a,b)=>a+b,0):0;
+    const p=(c+ngK)/((total)+ngK*V);
+    if(p>0) dist.push([w,p]);
+  }
+  dist.sort((a,b)=>b[1]-a[1]);
+  return {key, empty:false, dist};
+}
+function ngRenderBars(){
+  const d=ngDist();
+  const bars=$('#ng-bars'), ctx=$('#ng-ctx'), read=$('#ng-read');
+  ctx.textContent = ngOrder===1 ? '(no context)' : (ngContextKey()===null?'':'“…'+ngContextKey()+'”');
+  if(d===null){ bars.innerHTML=''; read.innerHTML='Add more words first — a '+(ngOrder===3?'trigram':'bigram')+' needs '+(ngOrder-1)+' word(s) of context.'; return; }
+  if(d.empty){ bars.innerHTML=''; read.innerHTML='<span class="bad">Unseen context.</span> The model never saw “'+d.key+'” in training, so with no smoothing it has <b>zero</b> predictions. Raise add-k, or drop to a lower order.'; return; }
+  const top=d.dist.slice(0,7);
+  const max=top[0][1];
+  bars.innerHTML=top.map(([w,p])=>`<div class="pbar pick" data-w="${w}"><span class="lab">${w}</span><span class="track"><span class="fill" style="width:${(p/max*100).toFixed(0)}%"></span></span><span class="pv">${p.toFixed(3)}</span></div>`).join('');
+  $$('#ng-bars .pbar').forEach(b=>b.addEventListener('click',()=>ngPush(b.dataset.w)));
+  const uniq=d.dist.length;
+  read.innerHTML = ngOrder===1
+    ? 'Unigram = pure word frequency, no context. Output is word salad — grammatical structure is impossible.'
+    : `<b>${uniq}</b> possible next words after this context. ${ngOrder===3?'Trigrams are sharper but hit unseen contexts fast.':'Bigrams capture local grammar but forget everything older than one word.'} Click a bar to choose that word.`;
+}
+function ngRenderText(){
+  const t=$('#ng-text');
+  if(ngSeq.length===0){ t.innerHTML='<span class="cur">▋</span>'; return; }
+  t.innerHTML=ngSeq.map((w,i)=>`<span class="tok${i===ngSeq.length-1?' new':''}">${w}</span>`).join(' ')+' <span class="cur">▋</span>';
+}
+function ngPush(w){ ngSeq.push(w); ngRenderText(); ngRenderBars(); }
+function ngSample(){
+  const d=ngDist();
+  if(d===null||d.empty||d.dist.length===0) return null;
+  // sample from top-k weighted
+  const top=d.dist.slice(0,8);
+  const ps=softmax(top.map(x=>Math.log(x[1]+1e-9)));
+  let r=Math.random(), acc=0;
+  for(let i=0;i<top.length;i++){acc+=ps[i]; if(r<=acc) return top[i][0];}
+  return top[0][0];
+}
+$('#ng-order').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)return;
+  $$('#ng-order button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  ngOrder=+b.dataset.n; ngRenderBars();});
+$('#ng-k').addEventListener('input',e=>{ngK=+e.target.value; $('#ng-kval').textContent=ngK.toFixed(2); ngRenderBars();});
+$('#ng-step').addEventListener('click',()=>{const w=ngSample(); if(w) ngPush(w); else ngRenderBars();});
+$('#ng-reset').addEventListener('click',()=>{ngSeq=[]; ngRenderText(); ngRenderBars();});
+$('#ng-auto').addEventListener('click',()=>{let n=0; const iv=setInterval(()=>{const w=ngSample(); if(!w||n>=12){clearInterval(iv); ngRenderBars(); return;} ngPush(w); n++;},220);});
+$('#ng-seeds').innerHTML=NG_SEEDS.map(s=>`<button class="chip" data-w="${s}">${s}</button>`).join('');
+$$('#ng-seeds .chip').forEach(c=>c.addEventListener('click',()=>{ngSeq=[c.dataset.w]; ngRenderText(); ngRenderBars();}));
+ngRenderText(); ngRenderBars();
+
+/* ============================================================ 02 EMBEDDINGS ============================================================ */
+const ATTRS={
+ king:{royal:1,human:1,male:1,adult:1}, queen:{royal:1,human:1,female:1,adult:1},
+ prince:{royal:1,human:1,male:1,young:1}, princess:{royal:1,human:1,female:1,young:1},
+ man:{human:1,male:1,adult:1}, woman:{human:1,female:1,adult:1},
+ boy:{human:1,male:1,young:1}, girl:{human:1,female:1,young:1},
+ france:{country:1,gFr:1}, paris:{capital:1,gFr:1}, italy:{country:1,gIt:1}, rome:{capital:1,gIt:1},
+ japan:{country:1,gJp:1}, tokyo:{capital:1,gJp:1}, germany:{country:1,gDe:1}, berlin:{capital:1,gDe:1},
+ cat:{animal:1,feline:1,adult:1}, kitten:{animal:1,feline:1,young:1},
+ lion:{animal:1,feline:1,big:1,wild:1}, dog:{animal:1,canine:1,adult:1},
+ puppy:{animal:1,canine:1,young:1}, wolf:{animal:1,canine:1,big:1,wild:1},
+ walk:{verb:1,motion:1,present:1}, walked:{verb:1,motion:1,past:1},
+ run:{verb:1,motion:1,present:1,fast:1}, ran:{verb:1,motion:1,past:1,fast:1},
+ swim:{verb:1,motion:1,present:1,water:1}, swam:{verb:1,motion:1,past:1,water:1}
+};
+const EMB_WORDS=Object.keys(ATTRS);
+const FEATS=[...new Set(EMB_WORDS.flatMap(w=>Object.keys(ATTRS[w])))];
+const VEC={}; EMB_WORDS.forEach(w=>{VEC[w]=FEATS.map(f=>ATTRS[w][f]||0);});
+function clusterOf(w){const a=ATTRS[w];
+  if(a.royal||a.human) return 0; if(a.country||a.capital) return 1;
+  if(a.animal) return 2; if(a.verb) return 3; return 4;}
+const CLUST_COL=[VI,CY,RO,GR,'#F59E0B'];
+
+// PCA via power iteration
+function pca2(words){
+  const X=words.map(w=>VEC[w].slice());
+  const d=FEATS.length, n=X.length;
+  const mean=Array(d).fill(0);
+  X.forEach(x=>x.forEach((v,i)=>mean[i]+=v/n));
+  const Xc=X.map(x=>x.map((v,i)=>v-mean[i]));
+  function powIter(M){
+    let v=Array(d).fill(0).map(()=>Math.random()-0.5);
+    for(let it=0;it<80;it++){
+      const nv=Array(d).fill(0);
+      M.forEach(x=>{const s=dot(x,v); for(let i=0;i<d;i++)nv[i]+=s*x[i];});
+      const nn=norm(nv); v=nv.map(x=>x/nn);
+    }
+    return v;
+  }
+  const pc1=powIter(Xc);
+  const Xd=Xc.map(x=>{const s=dot(x,pc1); return x.map((v,i)=>v-s*pc1[i]);});
+  const pc2=powIter(Xd);
+  return words.map((w,i)=>({w, x:dot(Xc[i],pc1), y:dot(Xc[i],pc2)}));
+}
+const EMB_PROJ=pca2(EMB_WORDS);
+let embMode='w2v', embResult=null, embHoverIdx=-1, embScreen=[];
+
+function embFill(sel){ sel.innerHTML=EMB_WORDS.map(w=>`<option>${w}</option>`).join(''); }
+['#emb-a','#emb-b','#emb-c','#emb-word'].forEach(s=>embFill($(s)));
+$('#emb-a').value='king'; $('#emb-b').value='man'; $('#emb-c').value='woman'; $('#emb-word').value='cat';
+const EMB_PRESETS=[['king','man','woman'],['paris','france','italy'],['paris','france','japan'],['walked','walk','run'],['puppy','dog','cat'],['lion','cat','dog']];
+$('#emb-presets').innerHTML=EMB_PRESETS.map((p,i)=>`<button class="chip" data-i="${i}">${p[0]}−${p[1]}+${p[2]}</button>`).join('');
+$$('#emb-presets .chip').forEach(c=>c.addEventListener('click',()=>{const p=EMB_PRESETS[+c.dataset.i]; $('#emb-a').value=p[0]; $('#emb-b').value=p[1]; $('#emb-c').value=p[2]; embCompute();}));
+
+function nearest(vec, exclude){
+  return EMB_WORDS.filter(w=>!exclude.includes(w))
+    .map(w=>[w,cosine(vec,VEC[w])]).sort((a,b)=>b[1]-a[1]);
+}
+function embCompute(){
+  if(embMode==='nn'){
+    const w=$('#emb-word').value;
+    const nn=nearest(VEC[w],[w]).slice(0,5);
+    embResult={type:'nn', anchor:w, list:nn.map(x=>x[0])};
+    $('#emb-read').innerHTML=`Closest to <b>${w}</b>:<br>`+nn.map(x=>`&nbsp;${x[0]} <span style="color:${MU}">${x[1].toFixed(3)}</span>`).join('<br>');
+  } else {
+    const a=$('#emb-a').value,b=$('#emb-b').value,c=$('#emb-c').value;
+    const res=add(sub(VEC[a],VEC[b]),VEC[c]);
+    const nn=nearest(res,[a,b,c]);
+    const top=nn[0];
+    embResult={type:'analogy', pts:[a,b,c,top[0]]};
+    $('#emb-read').innerHTML=`<b>${a}</b> − <b>${b}</b> + <b>${c}</b> ≈ <span class="good">${top[0]}</span> <span style="color:${MU}">(${top[1].toFixed(3)})</span><br><span style="color:${MU}">then: ${nn.slice(1,4).map(x=>x[0]).join(', ')}</span>`;
+  }
+  embDraw();
+}
+function fitCanvas(cv,cssH){
+  cv.style.width='100%'; cv.style.height=cssH+'px';
+  const cssW=cv.clientWidth||600, dpr=window.devicePixelRatio||1;
+  cv.width=Math.round(cssW*dpr); cv.height=Math.round(cssH*dpr);
+  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx, W:cssW, H:cssH};
+}
+function rectsOverlap(a,b){return !(a.x+a.w<b.x||b.x+b.w<a.x||a.y+a.h<b.y||b.y+b.h<a.y);}
+function embDraw(){
+  const cv=$('#emb-canvas'); const {ctx,W,H}=fitCanvas(cv,470);
+  ctx.clearRect(0,0,W,H);
+  const xs=EMB_PROJ.map(p=>p.x), ys=EMB_PROJ.map(p=>p.y);
+  const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
+  const pad=44;
+  const sx=x=>pad+(x-minx)/(maxx-minx||1)*(W-2*pad);
+  const sy=y=>H-pad-(y-miny)/(maxy-miny||1)*(H-2*pad);
+  embScreen=EMB_PROJ.map(p=>({w:p.w,X:sx(p.x),Y:sy(p.y),c:clusterOf(p.w)}));
+  const hi = embResult ? (embResult.type==='nn'?[embResult.anchor,...embResult.list]:embResult.pts) : [];
+  // analogy parallelogram (drawn first, under everything)
+  if(embResult&&embResult.type==='analogy'){
+    const P=embResult.pts.map(w=>embScreen.find(p=>p.w===w));
+    ctx.strokeStyle='rgba(108,92,231,.55)'; ctx.lineWidth=2; ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.moveTo(P[1].X,P[1].Y); ctx.lineTo(P[0].X,P[0].Y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(P[2].X,P[2].Y); ctx.lineTo(P[3].X,P[3].Y); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // dots
+  embScreen.forEach(p=>{
+    const on=hi.includes(p.w);
+    ctx.beginPath(); ctx.arc(p.X,p.Y,on?7:4.5,0,7);
+    ctx.fillStyle=on?CLUST_COL[p.c]:'rgba(150,148,200,.7)'; ctx.fill();
+    if(on){ctx.strokeStyle='#fff'; ctx.lineWidth=1.6; ctx.stroke();}
+  });
+  // labels with collision avoidance (pill background = always readable)
+  const placed=[];
+  function label(p,on,force){
+    ctx.font=(on?"600 13px ":"11px ")+"'JetBrains Mono',monospace";
+    const tw=ctx.measureText(p.w).width, th=on?14:12;
+    const cands=[[10,4],[-tw-12,4],[8,-13],[8,17],[-tw-12,-13],[-tw-12,17]];
+    for(const [dx,dy] of cands){
+      const r={x:p.X+dx-4,y:p.Y+dy-th+1,w:tw+8,h:th+5};
+      if(r.x<2||r.x+r.w>W-2||r.y<2||r.y+r.h>H-2) continue;
+      if(!force && placed.some(q=>rectsOverlap(r,q))) continue;
+      ctx.fillStyle= on?'rgba(18,18,58,.94)':'rgba(18,18,58,.72)';
+      roundRect(ctx,r.x,r.y,r.w,r.h,5); ctx.fill();
+      if(on){ctx.strokeStyle=CLUST_COL[p.c]; ctx.lineWidth=1.4; ctx.stroke();}
+      ctx.fillStyle= on?'#fff':'rgba(224,222,248,.95)';
+      ctx.fillText(p.w, p.X+dx, p.Y+dy);
+      placed.push(r); return true;
+    }
+    return false;
+  }
+  embScreen.forEach(p=>{ if(hi.includes(p.w)) label(p,true,true); });   // highlighted always
+  embScreen.forEach(p=>{ if(!hi.includes(p.w)) label(p,false,false); }); // rest, skip if they'd collide
+  // hover: bright label on top, even for a word we hid
+  if(embHoverIdx>=0 && embScreen[embHoverIdx]){
+    const p=embScreen[embHoverIdx];
+    ctx.beginPath(); ctx.arc(p.X,p.Y,6.5,0,7); ctx.fillStyle=CLUST_COL[p.c]; ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=1.6; ctx.stroke();
+    ctx.font="600 13px 'JetBrains Mono',monospace"; const tw=ctx.measureText(p.w).width;
+    let lx=p.X+11; if(lx+tw+10>W) lx=p.X-tw-13;
+    ctx.fillStyle=CLUST_COL[p.c]; roundRect(ctx,lx-4,p.Y-14,tw+8,19,5); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.fillText(p.w,lx,p.Y);
+  }
+}
+(function(){
+  const cv=$('#emb-canvas');
+  cv.addEventListener('mousemove',ev=>{
+    const r=cv.getBoundingClientRect(); const mx=ev.clientX-r.left, my=ev.clientY-r.top;
+    let best=-1,bd=1e9;
+    embScreen.forEach((p,i)=>{const d=(p.X-mx)**2+(p.Y-my)**2; if(d<bd){bd=d;best=i;}});
+    const ni = bd<420? best : -1;
+    if(ni!==embHoverIdx){ embHoverIdx=ni; embDraw(); }
+  });
+  cv.addEventListener('mouseleave',()=>{ if(embHoverIdx!==-1){ embHoverIdx=-1; embDraw(); } });
+  window.addEventListener('resize',()=>{ if($('#p-embed').classList.contains('active')&&embMode!=='glove') embDraw(); });
+})();
+$('#emb-mode').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)return;
+  $$('#emb-mode button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); embMode=b.dataset.m;
+  $('#emb-vec').classList.toggle('hidden', embMode==='glove');
+  $('#emb-glove').classList.toggle('hidden', embMode!=='glove');
+  $('#emb-analogy').classList.toggle('hidden', embMode!=='w2v');
+  $('#emb-nnctrl').classList.toggle('hidden', embMode!=='nn');
+  $('#emb-ctrl-title').textContent = embMode==='nn'?'Nearest neighbours':'Analogy: A − B + C';
+  if(embMode==='glove') gloveDraw(); else embCompute();
+});
+['#emb-a','#emb-b','#emb-c','#emb-word'].forEach(s=>$(s).addEventListener('change',embCompute));
+
+// GloVe co-occurrence
+const GLOVE_SENTS=[
+ 'the king ruled the land','the queen ruled the land','the man met the woman',
+ 'the cat chased the dog','the dog chased the cat','paris is in france','rome is in italy',
+ 'the king and queen','the man and woman','the cat and dog','the boy and girl',
+ 'france and italy','paris and rome','the lion and wolf','the king met the queen'];
+const GW=['king','queen','man','woman','cat','dog','paris','france','rome','italy'];
+const CO={}; GW.forEach(a=>{CO[a]={}; GW.forEach(b=>CO[a][b]=0);});
+GLOVE_SENTS.forEach(s=>{const t=s.split(' ').filter(w=>GW.includes(w));
+  for(let i=0;i<t.length;i++)for(let j=0;j<t.length;j++)if(i!==j)CO[t[i]][t[j]]++;});
+let gloveMax=0; GW.forEach(a=>GW.forEach(b=>gloveMax=Math.max(gloveMax,CO[a][b])));
+function gloveDraw(){
+  const cv=$('#glove-canvas'), ctx=cv.getContext('2d'); const W=cv.width;
+  const n=GW.length, m=52, top=52, cell=(W-m-14)/n;
+  ctx.clearRect(0,0,W,cv.height);
+  ctx.font="10px 'JetBrains Mono',monospace"; ctx.textAlign='right';
+  GW.forEach((w,i)=>{ctx.fillStyle=MU; ctx.fillText(w, m-6, top+i*cell+cell/2+3);});
+  ctx.save(); ctx.textAlign='left';
+  GW.forEach((w,j)=>{ctx.save(); ctx.translate(m+j*cell+cell/2, top-6); ctx.rotate(-Math.PI/4); ctx.fillStyle=MU; ctx.fillText(w,0,0); ctx.restore();});
+  ctx.restore();
+  GW.forEach((a,i)=>GW.forEach((b,j)=>{
+    const v=CO[a][b]/gloveMax; const x=m+j*cell, y=top+i*cell;
+    ctx.fillStyle=`rgba(108,92,231,${0.08+v*0.92})`;
+    ctx.fillRect(x+1,y+1,cell-2,cell-2);
+    if(v>0){ctx.fillStyle=v>0.5?'#fff':'rgba(237,235,255,.7)'; ctx.font="9px 'JetBrains Mono',monospace"; ctx.textAlign='center'; ctx.fillText(CO[a][b], x+cell/2, y+cell/2+3);}
+  }));
+  cv.onmousemove=ev=>{const r=cv.getBoundingClientRect(); const px=(ev.clientX-r.left)*(cv.width/r.width), py=(ev.clientY-r.top)*(cv.height/r.height);
+    const j=Math.floor((px-m)/cell), i=Math.floor((py-top)/cell);
+    if(i>=0&&i<n&&j>=0&&j<n) $('#glove-read').innerHTML=`<b>${GW[i]}</b> &amp; <b>${GW[j]}</b> co-occur <span class="good">${CO[GW[i]][GW[j]]}</span> times.<br><span style="color:${MU}">GloVe learns vectors so that ${GW[i]}·${GW[j]} reconstructs log of this count.</span>`;
+  };
+}
+embCompute();
+
+/* ============================================================ 03 RNN / LSTM ============================================================ */
+let rnnMode='step';
+$('#rnn-mode').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)return;
+  $$('#rnn-mode button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); rnnMode=b.dataset.m;
+  ['step','gate','grad'].forEach(m=>$('#rnn-'+m).classList.toggle('hidden',m!==rnnMode));
+  if(rnnMode==='grad') gradDraw(); if(rnnMode==='gate') gateDraw();
+});
+// stepper
+const HD=6;
+function seededRand(seed){return ()=>{seed=(seed*9301+49297)%233280; return seed/233280;};}
+const rr=seededRand(7);
+const Wx=Array.from({length:HD},()=>Array.from({length:HD},()=>rr()*1.4-0.7));
+const Wh=Array.from({length:HD},()=>Array.from({length:HD},()=>rr()*1.2-0.6));
+const RNN_SEQS={'the cat sat':[0,1,2],'dog ran home':[3,4,5],'she saw it':[2,0,1]};
+function embTok(id){const v=Array(HD).fill(0); v[id%HD]=1; v[(id*3+1)%HD]=0.6; return v;}
+let rnnState={h:Array(HD).fill(0), seq:[], names:[], idx:0};
+function rnnRender(){
+  const vec=$('#rnn-vec'); const mx=Math.max(0.3,...rnnState.h.map(Math.abs));
+  vec.innerHTML=rnnState.h.map(v=>`<div class="cell ${v<0?'neg':''}" style="height:${Math.abs(v)/mx*100}%"></div>`).join('');
+  $('#rnn-processed').textContent=rnnState.names.slice(0,rnnState.idx).join(' ')||'—';
+}
+function rnnStep(){
+  if(rnnState.idx>=rnnState.seq.length){ $('#rnn-read').innerHTML='Sequence finished. The final hidden state is the RNN\u2019s summary of the whole input — everything it remembers is squeezed into these 6 numbers. <span class="warn">Reset to try another.</span>'; return; }
+  const x=embTok(rnnState.seq[rnnState.idx]);
+  const nh=Array(HD).fill(0);
+  for(let i=0;i<HD;i++){let s=0; for(let j=0;j<HD;j++)s+=Wx[i][j]*x[j]+Wh[i][j]*rnnState.h[j]; nh[i]=Math.tanh(s);}
+  rnnState.h=nh; rnnState.idx++;
+  rnnRender();
+  $('#rnn-read').innerHTML=`Fed token <b>${rnnState.names[rnnState.idx-1]}</b>. New state = tanh(Wₓ·x + Wₕ·hₜ₋₁). Notice the whole past is compressed into one vector — that\u2019s the bottleneck attention later removes.`;
+}
+function rnnReset(seqKey){
+  const key=seqKey||Object.keys(RNN_SEQS)[0];
+  rnnState={h:Array(HD).fill(0), seq:RNN_SEQS[key], names:key.split(' '), idx:0};
+  rnnRender(); $('#rnn-read').innerHTML='Ready. Press <b>Feed next token</b> to fold “'+key.split(' ')[0]+'” into the hidden state.';
+}
+$('#rnn-seqs').innerHTML=Object.keys(RNN_SEQS).map(k=>`<button class="chip" data-k="${k}">${k}</button>`).join('');
+$$('#rnn-seqs .chip').forEach(c=>c.addEventListener('click',()=>rnnReset(c.dataset.k)));
+$('#rnn-stepbtn').addEventListener('click',rnnStep);
+$('#rnn-resetbtn').addEventListener('click',()=>rnnReset(rnnState.names.join(' ')));
+rnnReset();
+
+// LSTM gates
+function gateDraw(){
+  const x=+$('#lstm-x').value, cprev=+$('#lstm-c').value;
+  $('#lstm-xval').textContent=x.toFixed(1); $('#lstm-cval').textContent=cprev.toFixed(1);
+  // toy weighted gates
+  const f=sigmoid(1.2*x+0.3), inp=sigmoid(1.5*x-0.2), o=sigmoid(0.9*x+0.1), g=Math.tanh(1.1*x);
+  const c=f*cprev+inp*g; const h=o*Math.tanh(c);
+  const rows=[['forget fₜ',f,VI],['input iₜ',inp,CY],['candidate g̃ₜ',(g+1)/2,'#A78BFA'],['output oₜ',o,GR]];
+  $('#lstm-gates').innerHTML=rows.map(([l,v,col])=>`<div class="gate"><span class="gl">${l}</span><span class="gt"><span class="gf" style="width:${(v*100).toFixed(0)}%;background:${col}"></span></span><span class="gv">${(l.includes('candidate')?(g).toFixed(2):v.toFixed(2))}</span></div>`).join('');
+  const kept=(f*cprev).toFixed(2), wrote=(inp*g).toFixed(2);
+  $('#lstm-read').innerHTML=`New cell cₜ = fₜ·cₜ₋₁ + iₜ·g̃ₜ = <span class="good">${c.toFixed(2)}</span><br>Kept from old memory: <b>${kept}</b> · newly written: <b>${wrote}</b><br>Output hₜ = oₜ·tanh(cₜ) = <b>${h.toFixed(2)}</b>. <span style="color:${MU}">When forget≈1, memory passes through untouched — that\u2019s the LSTM highway.</span>`;
+}
+$('#lstm-x').addEventListener('input',gateDraw);
+$('#lstm-c').addEventListener('input',gateDraw);
+
+// vanishing gradient
+function gradDraw(){
+  const w=+$('#grad-w').value, T=+$('#grad-t').value;
+  $('#grad-wval').textContent=w.toFixed(2); $('#grad-tval').textContent=T;
+  const cv=$('#grad-canvas'), ctx=cv.getContext('2d'); const W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H); const pad=40;
+  const sx=d=>pad+d/T*(W-2*pad), sy=v=>H-pad-clamp(v,0,1)*(H-2*pad);
+  // axes
+  ctx.strokeStyle='rgba(255,255,255,.15)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(pad,pad); ctx.lineTo(pad,H-pad); ctx.lineTo(W-pad,H-pad); ctx.stroke();
+  ctx.fillStyle=MU; ctx.font="10px 'JetBrains Mono',monospace";
+  ctx.fillText('grad',pad-4,pad-8); ctx.textAlign='center'; ctx.fillText('steps back →',W/2,H-10); ctx.textAlign='left';
+  [0.1,1].forEach(v=>{ctx.fillText(v.toFixed(1),8,sy(v)+3); ctx.strokeStyle='rgba(255,255,255,.06)'; ctx.beginPath(); ctx.moveTo(pad,sy(v)); ctx.lineTo(W-pad,sy(v)); ctx.stroke();});
+  // rnn curve w^d
+  function curve(fn,col){ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.beginPath();
+    for(let d=0;d<=T;d++){const X=sx(d),Y=sy(fn(d)); d?ctx.lineTo(X,Y):ctx.moveTo(X,Y);} ctx.stroke();}
+  curve(d=>Math.pow(w,d), VI);
+  curve(d=>Math.pow(0.995,d), CY);
+  // threshold marker for rnn
+  const reach = w<1 ? Math.log(0.1)/Math.log(w) : T;
+  ctx.fillStyle=VI; ctx.font="600 11px 'JetBrains Mono',monospace"; ctx.fillText('RNN', sx(T*0.35), sy(Math.pow(w,T*0.35))-8);
+  ctx.fillStyle=CY; ctx.fillText('LSTM', sx(T*0.7), sy(Math.pow(0.995,T*0.7))-8);
+  let msg;
+  if(w<1){const r=Math.min(reach,T).toFixed(0);
+    msg=`With |w|=${w.toFixed(2)}, the RNN gradient falls below 0.1 after only <span class="bad">~${r} steps</span> — it effectively forgets anything older than that. The LSTM cell highway stays near 1.`;
+  }else{msg=`With |w|=${w.toFixed(2)} ≥ 1 the RNN gradient <span class="warn">explodes</span> instead — the opposite failure. Stable long-range learning needs the gated LSTM path (cyan).`;}
+  $('#grad-read').innerHTML=msg;
+}
+$('#grad-w').addEventListener('input',gradDraw);
+$('#grad-t').addEventListener('input',gradDraw);
+
+/* ============================================================ 04 ATTENTION ============================================================ */
+const ATTN_SENTS={
+ 'the animal didn\u2019t cross the street because it was tired':[
+   ['the',[0,0,0,0,0,0,1]],['animal',[1,0,0,0,0,0,0]],['didn\u2019t',[0,0,.4,.6,0,0,0]],
+   ['cross',[0,0,1,0,0,0,0]],['the',[0,0,0,0,0,0,1]],['street',[0,1,0,0,0,0,.1]],
+   ['because',[0,0,0,.2,0,0,.3]],['it',[.6,0,0,0,.25,0,0]],['was',[0,0,0,0,0,.4,.3]],['tired',[.35,0,0,0,0,1,0]]],
+ 'the cat sat because it was sleepy':[
+   ['the',[0,0,0,0,0,0,1]],['cat',[1,0,0,0,0,0,0]],['sat',[0,0,1,0,0,0,0]],
+   ['because',[0,0,0,.2,0,0,.3]],['it',[.6,0,0,0,.25,0,0]],['was',[0,0,0,0,0,.4,.3]],['sleepy',[.35,0,0,0,0,1,0]]],
+ 'the trophy didn\u2019t fit the suitcase because it was big':[
+   ['the',[0,0,0,0,0,0,1]],['trophy',[0,1,0,0,0,0,0]],['didn\u2019t',[0,0,.4,.6,0,0,0]],['fit',[0,0,1,0,0,0,0]],
+   ['the',[0,0,0,0,0,0,1]],['suitcase',[0,.9,0,0,0,0,0]],['because',[0,0,0,.2,0,0,.3]],
+   ['it',[0,.6,0,0,.25,0,0]],['was',[0,0,0,0,0,.4,.3]],['big',[0,.3,0,0,0,.7,0]]]
+};
+let attnSent=Object.keys(ATTN_SENTS)[0], attnQ=7, attnScale=1, attnMask=0;
+$('#attn-sents').innerHTML=Object.keys(ATTN_SENTS).map((s,i)=>`<button class="chip" data-i="${i}">${s.split(' ').slice(0,4).join(' ')}…</button>`).join('');
+$$('#attn-sents .chip').forEach(c=>c.addEventListener('click',()=>{attnSent=Object.keys(ATTN_SENTS)[+c.dataset.i]; attnQ=Math.min(attnQ,ATTN_SENTS[attnSent].length-1); attnDraw();}));
+$('#attn-scale').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)return; $$('#attn-scale button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); attnScale=+b.dataset.s; $('#attn-sval').textContent=attnScale?'on':'off'; attnDraw();});
+$('#attn-mask').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)return; $$('#attn-mask button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); attnMask=+b.dataset.k; attnDraw();});
+const EMB_GAIN=3; // stands in for a larger d_model / learned Q,K projections so the softmax isn't flat
+function attnMatrix(){
+  const toks=ATTN_SENTS[attnSent]; const n=toks.length, d=toks[0][1].length;
+  const scale=attnScale?1/Math.sqrt(d):1;
+  const M=[];
+  for(let i=0;i<n;i++){
+    const scores=[];
+    for(let j=0;j<n;j++){ let s=dot(toks[i][1],toks[j][1])*EMB_GAIN*EMB_GAIN*scale;
+      if(attnMask&&j>i) s=-1e9; scores.push(s); }
+    M.push(softmax(scores));
+  }
+  return {M,toks};
+}
+function attnDraw(){
+  const {M,toks}=attnMatrix(); const n=toks.length;
+  attnQ=Math.min(attnQ,n-1);
+  const row=$('#attn-tokens'); row.innerHTML=toks.map((t,i)=>`<span class="t ${i===attnQ?'q':''}" data-i="${i}">${t[0]}</span>`).join('');
+  $$('#attn-tokens .t').forEach(el=>el.addEventListener('click',()=>{attnQ=+el.dataset.i; attnDraw();}));
+  $('#attn-qword').textContent='“'+toks[attnQ][0]+'”';
+  const w=M[attnQ]; const order=w.map((v,i)=>[toks[i][0],v,i]).sort((a,b)=>b[1]-a[1]);
+  const mx=Math.max(...w);
+  $('#attn-bars').innerHTML=order.map(([lab,v])=>`<div class="pbar"><span class="lab">${lab}</span><span class="track"><span class="fill" style="width:${(v/mx*100).toFixed(0)}%"></span></span><span class="pv">${v.toFixed(2)}</span></div>`).join('');
+  const best=order[0];
+  $('#attn-read').innerHTML=`<b>“${toks[attnQ][0]}”</b> attends most to <span class="good">“${best[0]}”</span> (${(best[1]*100).toFixed(0)}%). ${toks[attnQ][0]==='it'?'The model resolves what “it” refers to purely from these weights.':'Every word blends information from the words it attends to.'}`;
+  // heatmap
+  const cv=$('#attn-canvas'), ctx=cv.getContext('2d'); const W=cv.width; const m=64, cell=(W-m-12)/n;
+  cv.height=m+n*cell+12; ctx.clearRect(0,0,W,cv.height);
+  ctx.font="10px 'JetBrains Mono',monospace";
+  toks.forEach((t,i)=>{ctx.fillStyle= i===attnQ?VI:MU; ctx.textAlign='right'; ctx.fillText(t[0], m-6, m+i*cell+cell/2+3);});
+  toks.forEach((t,j)=>{ctx.save(); ctx.translate(m+j*cell+cell/2, m-6); ctx.rotate(-Math.PI/4); ctx.fillStyle=MU; ctx.textAlign='left'; ctx.fillText(t[0],0,0); ctx.restore();});
+  for(let i=0;i<n;i++)for(let j=0;j<n;j++){
+    const v=M[i][j]; const x=m+j*cell,y=m+i*cell;
+    ctx.fillStyle=`rgba(34,211,238,${0.05+v*0.95})`;
+    ctx.fillRect(x+1,y+1,cell-2,cell-2);
+    if(i===attnQ){ctx.strokeStyle=VI; ctx.lineWidth=2; ctx.strokeRect(x+1,y+1,cell-2,cell-2);}
+  }
+}
+attnDraw();
+
+/* ============================================================ 05 TRANSFORMER ============================================================ */
+const TF_BLOCKS=[
+ {id:'in', y:560, label:'Token embeddings', col:'#334', shape:'[seq, d_model]',
+  txt:['Each input token is mapped to a learned vector of size d_model. This is the same idea as the Word2Vec tab — words become geometry.','No order information yet: the model still doesn\u2019t know which word came first.']},
+ {id:'pe', y:490, label:'+ Positional encoding', col:VI, shape:'[seq, d_model]',
+  txt:['Attention is order-blind, so we add a positional signal to every embedding. The sinusoids below give each position a unique, smoothly varying fingerprint.','Now “dog bites man” and “man bites dog” look different to the model.']},
+ {id:'mha', y:410, label:'Multi-head self-attention', col:CY, shape:'[seq, d_model]',
+  txt:['The core of the Transformer. Every token attends to every other token (the Attention tab), in several parallel “heads” that each learn a different relationship.','Because it\u2019s all matrix multiplies, the whole sequence is processed at once — no recurrence, fully parallel.']},
+ {id:'an1', y:350, label:'Add & Norm', col:GR, shape:'[seq, d_model]',
+  txt:['A residual connection adds the block\u2019s input back to its output, then LayerNorm stabilizes the result.','Residuals are why very deep stacks train at all — each layer only has to learn a small correction.']},
+ {id:'ff', y:270, label:'Feed-forward network', col:'#F59E0B', shape:'[seq, d_ff]→[seq, d_model]',
+  txt:['A small MLP applied to each position independently, usually expanding to a larger d_ff and back. This is where much of the model\u2019s capacity lives.','It mixes the features within each token after attention has mixed information across tokens.']},
+ {id:'an2', y:210, label:'Add & Norm', col:GR, shape:'[seq, d_model]',
+  txt:['Another residual + LayerNorm. The output has the same shape as the input, which is what lets us stack N identical layers.','Stack 6, 12, 96 of these and you have a modern encoder.']},
+ {id:'out', y:130, label:'To next layer ×N', col:'#334', shape:'[seq, d_model]',
+  txt:['The block\u2019s output feeds the next identical layer. Stacking depth is how Transformers build up abstraction.','This is the architecture behind BERT, GPT, and essentially every modern LLM.']}
+];
+let tfSel=null;
+function tfDraw(){
+  const cv=$('#tf-canvas'), ctx=cv.getContext('2d'); const W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  const bx=90, bw=W-180, bh=46;
+  // residual rail
+  ctx.strokeStyle='rgba(16,185,129,.4)'; ctx.lineWidth=2; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(bx-24,TF_BLOCKS.find(b=>b.id==='an1').y+bh/2); ctx.lineTo(bx-24,TF_BLOCKS.find(b=>b.id==='mha').y+bh); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(bx-24,TF_BLOCKS.find(b=>b.id==='an2').y+bh/2); ctx.lineTo(bx-24,TF_BLOCKS.find(b=>b.id==='ff').y+bh); ctx.stroke();
+  ctx.setLineDash([]);
+  // flow arrows
+  for(let i=0;i<TF_BLOCKS.length-1;i++){
+    const a=TF_BLOCKS[i], b=TF_BLOCKS[i+1];
+    ctx.strokeStyle='rgba(180,178,220,.4)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(W/2,a.y); ctx.lineTo(W/2,b.y+bh); ctx.stroke();
+    ctx.fillStyle='rgba(180,178,220,.5)'; ctx.beginPath();
+    ctx.moveTo(W/2-4,a.y+2); ctx.lineTo(W/2+4,a.y+2); ctx.lineTo(W/2,a.y-4); ctx.fill();
+  }
+  TF_BLOCKS.forEach(b=>{
+    const sel=tfSel===b.id;
+    ctx.fillStyle=sel?b.col:'#1E1E52';
+    ctx.strokeStyle=b.col; ctx.lineWidth=sel?2.5:1.5;
+    roundRect(ctx,bx,b.y,bw,bh,10); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=sel?'#fff':'#CFCDEC'; ctx.font=(sel?'600 ':'')+"13px 'JetBrains Mono',monospace"; ctx.textAlign='center';
+    ctx.fillText(b.label, W/2, b.y+bh/2+4);
+  });
+  cv.onclick=ev=>{const r=cv.getBoundingClientRect(); const py=(ev.clientY-r.top)*(cv.height/r.height);
+    const b=TF_BLOCKS.find(b=>py>=b.y&&py<=b.y+bh); if(b){tfSel=b.id; tfDraw(); tfDetail(b);}};
+}
+function roundRect(ctx,x,y,w,h,r){ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();}
+function tfDetail(b){$('#tf-detail').innerHTML=`<h4>${b.label}</h4><span class="shape">shape · ${b.shape}</span>`+b.txt.map(p=>`<p>${p}</p>`).join('');}
+
+// positional encoding
+function peDraw(){
+  const cv=$('#pe-canvas'), ctx=cv.getContext('2d'); const W=cv.width,H=cv.height;
+  const POS=24, DIM=16; const cw=(W-30)/POS, ch=(H-20)/DIM;
+  ctx.clearRect(0,0,W,H);
+  function pe(pos,i){const dm=DIM; const denom=Math.pow(10000,(2*Math.floor(i/2))/dm);
+    return i%2===0?Math.sin(pos/denom):Math.cos(pos/denom);}
+  for(let p=0;p<POS;p++)for(let i=0;i<DIM;i++){
+    const v=pe(p,i); const c=(v+1)/2;
+    ctx.fillStyle=`rgb(${Math.round(108+c*(34-108))},${Math.round(92+c*(211-92))},${Math.round(231+c*(238-231))})`;
+    ctx.fillRect(24+p*cw, 6+i*ch, cw-1, ch-1);
+  }
+  ctx.fillStyle=MU; ctx.font="9px 'JetBrains Mono',monospace"; ctx.textAlign='right'; ctx.fillText('dim',20,14);
+  cv.onmousemove=ev=>{const r=cv.getBoundingClientRect(); const px=(ev.clientX-r.left)*(cv.width/r.width);
+    const p=Math.floor((px-24)/cw);
+    if(p>=0&&p<POS) $('#pe-cap').innerHTML=`Position <b style="color:${VI}">${p}</b>: a unique pattern of sine &amp; cosine values across ${DIM} dimensions. Nearby positions have similar fingerprints, so the model can reason about distance.`;
+  };
+}
+
+</script>
+</body>
+</html>
