@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attention Mechanisms · Types in Detail</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#12123A; --navy2:#1B1B52; --stage:#14143F; --violet:#6C5CE7; --cyan:#22D3EE;
+    --light:#F5F5FB; --tint:#EEECFB; --tint2:#E4FAFD; --ink:#1E1B3A;
+    --mute:#6B6B8D; --line:#DAD8EE; --amber:#F59E0B; --rose:#FB7185; --green:#10B981;
+    --dline:#2E2E66;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:'Inter',system-ui,sans-serif; color:var(--ink); background:var(--light);
+    -webkit-font-smoothing:antialiased; line-height:1.55}
+  h1,h2,h3{font-family:'Fraunces',Georgia,serif; line-height:1.1; font-weight:600}
+  .mono{font-family:'JetBrains Mono',monospace}
+  button{font-family:inherit; cursor:pointer}
+  ::selection{background:var(--violet); color:#fff}
+
+  /* ---------- TOP BAR ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:50; background:rgba(18,18,58,.92);
+    backdrop-filter:blur(10px); border-bottom:1px solid var(--dline); color:#fff;
+    padding:.85rem clamp(1rem,4vw,2.5rem); display:flex; align-items:center; gap:1rem; flex-wrap:wrap;
+  }
+  .brand{font-family:'Fraunces',serif; font-weight:600; font-size:1.15rem; display:flex; align-items:center; gap:.6rem; white-space:nowrap}
+  .brand .spark{width:11px; height:11px; border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, var(--cyan), var(--violet)); box-shadow:0 0 14px var(--violet)}
+  .brand em{color:var(--cyan); font-style:normal}
+  .tabs{display:flex; gap:.3rem; flex-wrap:wrap; margin-left:auto}
+  .tab{
+    font-family:'JetBrains Mono',monospace; font-size:.76rem; letter-spacing:.02em; font-weight:500;
+    color:#B7B5DC; background:transparent; border:1px solid transparent; border-radius:9px;
+    padding:.5rem .8rem; transition:all .2s; display:flex; align-items:center; gap:.5rem;
+  }
+  .tab .ix{color:var(--violet); font-weight:700}
+  .tab:hover{color:#fff; background:rgba(255,255,255,.06)}
+  .tab.active{color:#fff; background:var(--violet); border-color:var(--violet)}
+  .tab.active .ix{color:#fff}
+
+  /* ---------- INTRO ---------- */
+  .intro{padding:clamp(2.2rem,5vw,3.4rem) clamp(1rem,5vw,2.5rem) 1rem; max-width:900px; margin:0 auto}
+  .intro .eyebrow{font-family:'JetBrains Mono',monospace; font-size:.72rem; letter-spacing:.24em;
+    text-transform:uppercase; color:var(--violet); margin-bottom:.9rem}
+  .intro h1{font-size:clamp(2rem,5vw,3.2rem); letter-spacing:-.015em}
+  .intro h1 em{font-style:italic; color:var(--violet)}
+  .intro p{margin-top:1rem; color:var(--mute); font-size:1.08rem; max-width:62ch}
+  .intro .note{margin-top:1rem; font-family:'JetBrains Mono',monospace; font-size:.78rem; color:var(--mute);
+    display:inline-flex; align-items:center; gap:.5rem; background:var(--tint); padding:.4rem .8rem; border-radius:999px}
+
+  /* ---------- PANEL SHELL ---------- */
+  main{max-width:1080px; margin:0 auto; padding:1.5rem clamp(1rem,5vw,2.5rem) 5rem}
+  .panel{display:none; animation:fade .4s ease}
+  .panel.active{display:block}
+  @keyframes fade{from{opacity:0; transform:translateY(10px)}to{opacity:1; transform:none}}
+  .phead{margin:1rem 0 1.6rem}
+  .phead .kick{font-family:'JetBrains Mono',monospace; font-size:.74rem; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--cyan); background:var(--navy); display:inline-block;
+    padding:.3rem .7rem; border-radius:7px; margin-bottom:.9rem}
+  .phead h2{font-size:clamp(1.6rem,4vw,2.4rem); letter-spacing:-.01em}
+  .phead p{margin-top:.7rem; color:var(--mute); max-width:66ch; font-size:1.02rem}
+  .phead p b{color:var(--ink)}
+
+  /* cards / stage */
+  .stage{background:var(--stage); border-radius:16px; padding:clamp(1rem,3vw,1.6rem);
+    border:1px solid var(--dline); color:#EDEBFF; overflow:hidden}
+  .stage.tall{min-height:280px}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:1rem}
+  .grid-c{display:grid; grid-template-columns:340px 1fr; gap:1rem}
+  @media(max-width:760px){.grid2,.grid-c{grid-template-columns:1fr}}
+
+  .controls{background:#fff; border:1px solid var(--line); border-radius:16px; padding:1.3rem}
+  .controls h4{font-family:'JetBrains Mono',monospace; font-size:.72rem; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--mute); margin-bottom:1rem; font-weight:600}
+  .field{margin-bottom:1.1rem}
+  .field:last-child{margin-bottom:0}
+  .field label{display:block; font-size:.82rem; font-weight:600; color:var(--ink); margin-bottom:.45rem;
+    display:flex; justify-content:space-between; align-items:baseline}
+  .field label .val{font-family:'JetBrains Mono',monospace; color:var(--violet); font-size:.82rem}
+  select, input[type=text]{
+    width:100%; font-family:'JetBrains Mono',monospace; font-size:.86rem; color:var(--ink);
+    background:var(--light); border:1px solid var(--line); border-radius:9px; padding:.55rem .7rem;
+  }
+  select:focus, input:focus{outline:2px solid var(--violet); outline-offset:1px}
+  input[type=range]{width:100%; accent-color:var(--violet); height:22px}
+  .btn{background:var(--violet); color:#fff; border:none; border-radius:9px; padding:.6rem 1rem;
+    font-weight:600; font-size:.86rem; transition:transform .15s, background .2s}
+  .btn:hover{background:#5a4bd4} .btn:active{transform:scale(.97)}
+  .btn.ghost{background:transparent; color:var(--violet); border:1px solid var(--line)}
+  .btn.ghost:hover{background:var(--tint)}
+  .btn.cyan{background:var(--cyan); color:var(--navy)} .btn.cyan:hover{background:#0fbcd6}
+  .btnrow{display:flex; gap:.55rem; flex-wrap:wrap}
+  .seg{display:inline-flex; background:var(--light); border:1px solid var(--line); border-radius:10px; padding:.2rem; gap:.2rem}
+  .seg button{border:none; background:transparent; padding:.45rem .8rem; border-radius:7px; font-size:.8rem;
+    font-weight:600; color:var(--mute); font-family:'JetBrains Mono',monospace}
+  .seg button.on{background:var(--violet); color:#fff}
+  .chips{display:flex; gap:.4rem; flex-wrap:wrap}
+  .chip{font-family:'JetBrains Mono',monospace; font-size:.76rem; padding:.35rem .6rem; border-radius:7px;
+    background:var(--tint); color:var(--violet); border:1px solid transparent; font-weight:600}
+  .chip:hover{border-color:var(--violet)}
+
+  .readout{font-family:'JetBrains Mono',monospace; font-size:.82rem; color:#B7B5DC; margin-top:1rem;
+    background:var(--navy); border-radius:11px; padding:.9rem 1rem; border:1px solid var(--dline); line-height:1.6}
+  .readout b{color:var(--cyan); font-weight:600}
+  .readout .good{color:var(--green)} .readout .bad{color:var(--rose)} .readout .warn{color:var(--amber)}
+
+  /* prob bars (ngram + attention) */
+  .pbar{display:flex; align-items:center; gap:.7rem; margin:.34rem 0; font-family:'JetBrains Mono',monospace; font-size:.82rem}
+  .pbar .lab{width:88px; text-align:right; color:#EDEBFF; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .pbar .track{flex:1; height:14px; background:rgba(255,255,255,.08); border-radius:7px; overflow:hidden}
+  .pbar .fill{height:100%; border-radius:7px; background:linear-gradient(90deg,var(--violet),var(--cyan));
+    transition:width .5s cubic-bezier(.2,.8,.2,1)}
+  .pbar .pv{width:46px; color:#8F8DB8}
+  .pbar.pick{cursor:pointer} .pbar.pick:hover .lab{color:var(--cyan)}
+
+  /* generated text */
+  .gentext{font-family:'JetBrains Mono',monospace; font-size:.95rem; line-height:1.9; color:#EDEBFF;
+    min-height:3.4em; letter-spacing:.01em}
+  .gentext .tok{padding:.05rem .1rem; border-radius:4px}
+  .gentext .new{background:var(--violet); color:#fff; animation:pop .4s ease}
+  .gentext .cur{color:var(--cyan)}
+  @keyframes pop{from{transform:scale(1.3)}to{transform:scale(1)}}
+
+  canvas{display:block; max-width:100%}
+  .cap{font-family:'JetBrains Mono',monospace; font-size:.72rem; color:#8F8DB8; margin-top:.7rem; text-align:center}
+
+  /* token row for attention */
+  .tokrow{display:flex; flex-wrap:wrap; gap:.4rem; margin-bottom:1rem}
+  .tokrow .t{font-family:'JetBrains Mono',monospace; font-size:.86rem; padding:.4rem .6rem; border-radius:8px;
+    background:var(--navy2); color:#CFCDEC; border:1px solid var(--dline); transition:all .2s}
+  .tokrow .t:hover{border-color:var(--cyan)}
+  .tokrow .t.q{background:var(--violet); color:#fff; border-color:var(--violet)}
+
+  /* transformer diagram */
+  .tf-wrap{display:grid; grid-template-columns:1fr 1fr; gap:1rem}
+  @media(max-width:760px){.tf-wrap{grid-template-columns:1fr}}
+  .tf-block{cursor:pointer}
+  .tf-detail{background:#fff; border:1px solid var(--line); border-radius:14px; padding:1.3rem; min-height:200px}
+  .tf-detail h4{font-family:'Fraunces',serif; font-size:1.25rem; margin-bottom:.4rem; color:var(--ink)}
+  .tf-detail .shape{font-family:'JetBrains Mono',monospace; font-size:.78rem; color:var(--violet);
+    background:var(--tint); display:inline-block; padding:.25rem .55rem; border-radius:6px; margin-bottom:.8rem}
+  .tf-detail p{color:var(--mute); font-size:.95rem} .tf-detail p+p{margin-top:.6rem}
+
+  /* hidden state / gate bars */
+  .vec{display:flex; gap:.3rem; align-items:flex-end; height:90px; margin:.5rem 0}
+  .vec .cell{flex:1; background:linear-gradient(180deg,var(--violet),var(--cyan)); border-radius:4px 4px 0 0;
+    min-height:2px; transition:height .35s cubic-bezier(.2,.8,.2,1); position:relative}
+  .vec .cell.neg{background:linear-gradient(180deg,var(--rose),#f9a8b4)}
+  .gatebars{display:flex; flex-direction:column; gap:.7rem; margin-top:.4rem}
+  .gate{display:flex; align-items:center; gap:.8rem}
+  .gate .gl{width:120px; font-family:'JetBrains Mono',monospace; font-size:.78rem; color:#CFCDEC}
+  .gate .gt{flex:1; height:16px; background:rgba(255,255,255,.08); border-radius:8px; overflow:hidden}
+  .gate .gf{height:100%; border-radius:8px; transition:width .4s}
+  .gate .gv{width:44px; font-family:'JetBrains Mono',monospace; font-size:.78rem; color:#8F8DB8}
+
+  .foot{max-width:1080px; margin:0 auto; padding:1rem clamp(1rem,5vw,2.5rem) 3rem; color:var(--mute);
+    font-family:'JetBrains Mono',monospace; font-size:.76rem; text-align:center}
+  .hidden{display:none!important}
+
+  /* ---------- EXPLAINER ---------- */
+  details.explain{background:#fff; border:1px solid var(--line); border-radius:16px; margin-top:1.5rem; overflow:hidden}
+  details.explain>summary{cursor:pointer; list-style:none; padding:1.05rem 1.3rem;
+    font-family:'JetBrains Mono',monospace; font-size:.82rem; font-weight:600; letter-spacing:.03em;
+    color:var(--ink); display:flex; align-items:center; gap:.75rem; user-select:none}
+  details.explain>summary::-webkit-details-marker{display:none}
+  details.explain>summary::before{content:'+'; display:inline-flex; align-items:center; justify-content:center;
+    width:22px; height:22px; border-radius:7px; background:var(--tint); color:var(--violet); font-weight:700; flex:none}
+  details.explain[open]>summary::before{content:'\2212'}
+  details.explain[open]>summary{border-bottom:1px solid var(--line)}
+  details.explain>summary:hover{color:var(--violet)}
+  .explain .body{padding:1.3rem 1.4rem 1.5rem; color:#3a3560; font-size:.95rem; line-height:1.68}
+  .explain .body h5{font-family:'Fraunces',serif; font-size:1.08rem; color:var(--ink); margin:1.3rem 0 .5rem; font-weight:600}
+  .explain .body h5:first-child{margin-top:0}
+  .explain ol{margin:.2rem 0 0; padding:0; counter-reset:e; list-style:none}
+  .explain ol>li{position:relative; padding-left:2.3rem; margin-bottom:.85rem}
+  .explain ol>li::before{counter-increment:e; content:counter(e); position:absolute; left:0; top:.05rem;
+    width:1.6rem; height:1.6rem; border-radius:8px; background:var(--navy); color:#fff;
+    font-family:'JetBrains Mono',monospace; font-size:.76rem; font-weight:600;
+    display:flex; align-items:center; justify-content:center}
+  .explain b{color:var(--ink); font-weight:600}
+  .explain .f{font-family:'JetBrains Mono',monospace; background:var(--navy); color:#EDEBFF;
+    padding:.35rem .65rem; border-radius:7px; font-size:.86em; display:inline-block; margin:.3rem 0}
+  .explain .tip{background:var(--tint2); border-left:3px solid var(--cyan); border-radius:0 9px 9px 0;
+    padding:.7rem .9rem; margin:.7rem 0; font-size:.9rem; color:#334}
+  .explain .ctrls{margin-top:1.2rem; padding-top:1rem; border-top:1px dashed var(--line)}
+  .explain .ctrls .row{display:flex; gap:.7rem; margin:.4rem 0; font-size:.9rem; align-items:baseline}
+  .explain .ctrls .k{font-family:'JetBrains Mono',monospace; color:var(--violet); font-weight:600;
+    min-width:130px; flex:none}
+
+  @media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="spark"></span>Attention&nbsp;<em>Mechanisms</em></div>
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="core"><span class="ix">01</span> The core</button>
+    <button class="tab" data-tab="scoring"><span class="ix">02</span> Scoring</button>
+    <button class="tab" data-tab="place"><span class="ix">03</span> Self vs Cross</button>
+    <button class="tab" data-tab="patterns"><span class="ix">04</span> Patterns</button>
+    <button class="tab" data-tab="softhard"><span class="ix">05</span> Soft vs Hard</button>
+    <button class="tab" data-tab="heads"><span class="ix">06</span> Heads · MQA/GQA</button>
+  </nav>
+</div>
+
+<section class="intro">
+  <div class="eyebrow">Interactive companion · types of attention · nothing leaves your browser</div>
+  <h1>Every kind of <em>attention</em>, made tangible</h1>
+  <p>Attention is the trick that lets AI focus on the right words. Read <em>"the trophy didn't fit in the suitcase
+    because it was too big"</em> — you instantly know "it" means the trophy. Attention is how a model does that.
+    It comes in a few flavors; these six hands-on tools let you play with each one, in plain language.</p>
+  <div class="note">Tip: start at "The core" — every other type is a twist on it.</div>
+</section>
+
+<main>
+  <!-- ============================================================ 01 CORE -->
+  <section class="panel active" id="p-core">
+    <div class="phead">
+      <span class="kick">01 · The mechanism</span>
+      <h2>Scaled dot-product attention</h2>
+      <p>Every kind of attention works the same way — like looking something up in a library: compare what you want
+        against every book, turn the matches into percentages of your focus, then pull out a blend of the most relevant
+        ones. Click a word to make it the one doing the looking.</p>
+    </div>
+    <div class="grid-c">
+      <div class="controls">
+        <h4>Controls</h4>
+        <div class="field"><label>Sentence</label><div class="chips" id="co-sents"></div></div>
+        <div class="field"><label>Scaling 1/√dₖ <span class="val" id="co-sval">on</span></label>
+          <div class="seg" id="co-scale"><button data-s="1" class="on">Scaled</button><button data-s="0">Unscaled</button></div></div>
+        <div class="readout" id="co-read">Click a word below to set it as the query.</div>
+      </div>
+      <div>
+        <div class="stage">
+          <div class="tokrow" id="co-tokens"></div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:#8F8DB8;margin:.4rem 0 .5rem">
+            THE 4 STEPS · query = <span id="co-qword" style="color:var(--violet)"></span></div>
+          <div id="co-bars"></div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:#8F8DB8;margin:1.1rem 0 .5rem">FULL ATTENTION MATRIX</div>
+          <canvas id="co-canvas" width="620" height="620"></canvas>
+          <div class="cap">row = query · column = key · brighter = more attention</div>
+        </div>
+      </div>
+    </div>
+    <details class="explain"><summary>How it works, step by step</summary><div class="body">
+      <ol>
+        <li><b>Three roles.</b> Each word plays three parts: what it's <b>looking for</b>, a <b>label</b> advertising
+          what it offers, and the <b>information</b> it hands over. Think library search: your topic, the labels on the
+          book spines, and the contents inside. (Their technical names are Query, Key, and Value.)</li>
+        <li><b>Compare.</b> The word doing the looking checks against every other word's label to see how well they match.</li>
+        <li><b>Keep it sensible.</b> Big matches get toned down a bit, so one loud match doesn't drown out everything else.</li>
+        <li><b>Turn into percentages.</b> The matches become a split of your focus that adds up to 100% — maybe 70% one
+          word, 20% another.</li>
+        <li><b>Blend.</b> The result is a mix of the words' information, weighted by those percentages. Example: for "it"
+          in "the animal didn't cross… because it was tired," most of the focus lands on "animal," so "it" quietly picks
+          up the meaning of "animal."</li>
+      </ol>
+    </div></details>
+  </section>
+
+  <!-- ============================================================ 02 SCORING -->
+  <section class="panel" id="p-scoring">
+    <div class="phead">
+      <span class="kick">02 · The scoring function</span>
+      <h2>How the score is computed: additive vs dot-product</h2>
+      <p>Before splitting its focus, the model rates how well two words "match." There are two classic ways to score that
+        match — a quick one and a more careful one. See how each behaves as the words get more detailed.</p>
+    </div>
+    <div class="grid-c">
+      <div class="controls">
+        <h4>Scoring recipe</h4>
+        <div class="field"><div class="seg" id="sc-fn" style="flex-wrap:wrap">
+          <button data-f="dot" class="on">Dot-product</button><button data-f="scaled">Scaled dot</button><button data-f="add">Additive</button></div></div>
+        <div class="field"><label>key dimension dₖ <span class="val" id="sc-dv">8</span></label><input type="range" id="sc-d" min="2" max="128" step="1" value="8"></div>
+        <div class="readout" id="sc-read"></div>
+      </div>
+      <div>
+        <div class="stage">
+          <div class="tokrow" id="sc-tokens"></div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:#8F8DB8;margin:.5rem 0 .5rem">
+            SCORES then WEIGHTS · query = <span id="sc-qword" style="color:var(--violet)"></span></div>
+          <div id="sc-bars"></div>
+          <div class="readout" id="sc-note" style="margin-top:1rem"></div>
+        </div>
+      </div>
+    </div>
+    <details class="explain"><summary>How it works, step by step</summary><div class="body">
+      <ol>
+        <li><b>Quick score (dot-product).</b> A fast similarity rating between two words — like glancing at two dating
+          profiles and rating how alike they are. Easy, but the scores balloon as the word descriptions get longer.</li>
+        <li><b>Toned-down score (scaled).</b> The same quick score, divided down so it stays sensible no matter how long
+          the descriptions are. Slide the length up: the plain version lurches to all-or-nothing while this one stays
+          calm. Every modern model uses this.</li>
+        <li><b>Careful score (additive).</b> A tiny built-in judge weighs the two words together. Slower, but it works
+          even when the two things being compared aren't the same size.</li>
+        <li><b>Same next step.</b> However you score the match, the scores then become percentages of focus — so this
+          choice only changes <i>how</i> "match" is measured, not what happens next.</li>
+      </ol>
+    </div></details>
+  </section>
+
+  <!-- ============================================================ 03 SELF vs CROSS -->
+  <section class="panel" id="p-place">
+    <div class="phead">
+      <span class="kick">03 · Where the Q/K/V come from</span>
+      <h2>Self-attention vs cross-attention</h2>
+      <p>Same idea, two wirings. In <b>self-attention</b>, words in one sentence look at each other. In
+        <b>cross-attention</b>, the words being written look back at a different text — like a translator glancing at
+        the original.</p>
+    </div>
+    <div class="seg" id="pl-mode" style="margin-bottom:1rem">
+      <button data-m="self" class="on">Self-attention</button>
+      <button data-m="cross">Cross-attention</button>
+    </div>
+    <div class="grid-c">
+      <div class="controls">
+        <h4 id="pl-title">Self-attention</h4>
+        <p style="font-size:.9rem;color:var(--mute)" id="pl-desc"></p>
+        <div class="readout" id="pl-read" style="margin-top:1rem"></div>
+      </div>
+      <div>
+        <div class="stage">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:#8F8DB8;margin-bottom:.5rem" id="pl-seqs"></div>
+          <canvas id="pl-canvas" width="620" height="440"></canvas>
+          <div class="cap" id="pl-cap"></div>
+        </div>
+      </div>
+    </div>
+    <details class="explain"><summary>How it works, step by step</summary><div class="body">
+      <ol>
+        <li><b>Self-attention.</b> Every word looks at the other words in its <b>own</b> sentence — how a model works
+          out that "it" means "the animal." Like a group in one room, each person listening to everyone else in that
+          same room.</li>
+        <li><b>Cross-attention.</b> The text being produced looks back at a <b>different</b> source text. A translator
+          writing French keeps glancing at the English to line each word up. This powers translation, summarizing, and
+          photo captioning.</li>
+        <li><b>Why it matters.</b> Understanding-only models (BERT) use just self-attention; text generators (GPT) use
+          self-attention that can only look backward; translators use both, plus cross-attention to connect the output
+          to the input.</li>
+      </ol>
+    </div></details>
+  </section>
+
+  <!-- ============================================================ 04 PATTERNS -->
+  <section class="panel" id="p-patterns">
+    <div class="phead">
+      <span class="kick">04 · Who can attend to whom</span>
+      <h2>Attention patterns: global, local, causal &amp; sparse</h2>
+      <p>Letting every word look at every other is powerful but slow — for a long document it's like making everyone at
+        a huge conference meet everyone else. Restricting who looks at whom is how models read long things. Explore the
+        common shapes.</p>
+    </div>
+    <div class="grid-c">
+      <div class="controls">
+        <h4>Pattern</h4>
+        <div class="field"><div class="seg" id="pt-kind" style="flex-wrap:wrap">
+          <button data-k="full" class="on">Full</button><button data-k="causal">Causal</button>
+          <button data-k="window">Sliding</button><button data-k="dilated">Dilated</button>
+          <button data-k="block">Block</button><button data-k="global">Global+local</button></div></div>
+        <div class="field" id="pt-wfield"><label>window size <span class="val" id="pt-wv">2</span></label><input type="range" id="pt-w" min="1" max="6" step="1" value="2"></div>
+        <div class="field"><label>sequence length <span class="val" id="pt-nv">16</span></label><input type="range" id="pt-n" min="8" max="32" step="1" value="16"></div>
+        <div class="readout" id="pt-read"></div>
+      </div>
+      <div>
+        <div class="stage"><canvas id="pt-canvas" width="620" height="480"></canvas>
+          <div class="cap">lit cell = query (row) may attend to key (column) · fewer lit cells = less compute</div>
+        </div>
+      </div>
+    </div>
+    <details class="explain"><summary>How it works, step by step</summary><div class="body">
+      <ol>
+        <li><b>Full.</b> Every word looks at all the others — the most thorough, but the work grows fast (double the
+          length, quadruple the work), so it can't handle very long text.</li>
+        <li><b>Causal.</b> A word may only look <b>backward</b> at earlier words — needed to write text one word at a
+          time (like autocomplete).</li>
+        <li><b>Sliding window.</b> Each word only checks its <b>nearby neighbors</b> — cheap, and information still
+          spreads as it passes through layers, like gossip crossing a room. Used by long-document models.</li>
+        <li><b>Dilated / block / global+local.</b> Skip around, group words into chunks, or keep a few "announcement"
+          words everyone hears. These shortcuts read book-length text at a fraction of the cost — the density number
+          shows how much work you save.</li>
+      </ol>
+    </div></details>
+  </section>
+
+  <!-- ============================================================ 05 SOFT vs HARD -->
+  <section class="panel" id="p-softhard">
+    <div class="phead">
+      <span class="kick">05 · How much to commit</span>
+      <h2>Soft vs hard attention</h2>
+      <p>When a word focuses, does it gently split its attention or commit to just one thing? Compare a
+        <b>dimmer switch</b> with an <b>on/off switch</b>.</p>
+    </div>
+    <div class="seg" id="sh-mode" style="margin-bottom:1rem">
+      <button data-m="soft" class="on">Soft (blend)</button>
+      <button data-m="hard">Hard (pick one)</button>
+    </div>
+    <div class="grid-c">
+      <div class="controls">
+        <h4>Query focus</h4>
+        <p style="font-size:.9rem;color:var(--mute)">Drag to change how peaked the scores are, then compare how soft
+          and hard attention respond.</p>
+        <div class="field"><label>focus (temperature) <span class="val" id="sh-tv">1.0</span></label><input type="range" id="sh-t" min="0.2" max="3" step="0.1" value="1"></div>
+        <div class="readout" id="sh-read"></div>
+      </div>
+      <div>
+        <div class="stage">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:#8F8DB8;margin-bottom:.6rem">ATTENTION OVER 6 KEYS</div>
+          <div id="sh-bars"></div>
+          <div class="readout" id="sh-note" style="margin-top:1.1rem"></div>
+        </div>
+      </div>
+    </div>
+    <details class="explain"><summary>How it works, step by step</summary><div class="body">
+      <ol>
+        <li><b>Soft (dimmer).</b> Focus is split across everything by percentages, and the result is a blend. Because
+          it's smooth, the model learns easily — which is why nearly every real system uses it.</li>
+        <li><b>Hard (on/off).</b> Pick exactly one word to look at. Cheaper, and easy to explain since you can point to
+          the one thing it looked at — but "pick one" is an abrupt choice that's hard to learn from, so it stays mostly
+          a research idea.</li>
+        <li><b>The dial between them.</b> Turning the focus up makes soft attention sharper until it almost picks one
+          thing; turning it down spreads focus evenly.</li>
+      </ol>
+    </div></details>
+  </section>
+
+  <!-- ============================================================ 06 HEADS -->
+  <section class="panel" id="p-heads">
+    <div class="phead">
+      <span class="kick">06 · Many views &amp; the KV-cache trick</span>
+      <h2>Multi-head — and MQA / GQA</h2>
+      <p>One focuser notices one kind of link. Running a <b>team</b> of them in parallel — each spotting something
+        different — is multi-head attention. Modern models also make them <b>share notes</b> to go faster.</p>
+    </div>
+    <div class="seg" id="hd-mode" style="margin-bottom:1rem">
+      <button data-m="heads" class="on">Heads specialize</button>
+      <button data-m="share">MHA · GQA · MQA</button>
+    </div>
+    <div id="hd-heads">
+      <div class="grid-c">
+        <div class="controls">
+          <h4>Pick a head</h4>
+          <div class="field"><div class="seg" id="hd-pick">
+            <button data-h="0" class="on">Local</button><button data-h="1">Coreference</button><button data-h="2">Predicate</button></div></div>
+          <div class="readout" id="hd-read">Click a word, then switch heads to see different attention.</div>
+        </div>
+        <div>
+          <div class="stage">
+            <div class="tokrow" id="hd-tokens"></div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:#8F8DB8;margin:.4rem 0 .5rem">
+              <span id="hd-headname" style="color:var(--cyan)"></span> · from <span id="hd-qword" style="color:var(--violet)"></span></div>
+            <div id="hd-bars"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="hd-share" class="hidden">
+      <div class="grid-c">
+        <div class="controls">
+          <h4>Key/Value sharing</h4>
+          <div class="field"><div class="seg" id="hd-kv">
+            <button data-k="mha" class="on">MHA</button><button data-k="gqa">GQA</button><button data-k="mqa">MQA</button></div></div>
+          <div class="readout" id="hd-kvread"></div>
+        </div>
+        <div><div class="stage"><canvas id="hd-canvas" width="620" height="330"></canvas>
+          <div class="cap">top = query heads · bottom = key/value heads · lines show which KV each query head uses</div></div></div>
+      </div>
+    </div>
+    <details class="explain"><summary>How it works, step by step</summary><div class="body">
+      <ol>
+        <li><b>Multi-head.</b> Run several focusers at once, each trained to notice a different thing — nearby grammar,
+          who "it" refers to, verb-and-object pairs. Then combine what they each found. Like a grammar expert, a
+          character-tracker, and an action-tracker all reading the same sentence.</li>
+        <li><b>The catch.</b> As the model writes, each focuser keeps notes on everything so far. Many focusers means a
+          huge pile of notes — which slows generation down.</li>
+        <li><b>MQA — one shared notebook.</b> All focusers share a single set of notes: much lighter and faster, with a
+          small quality cost.</li>
+        <li><b>GQA — a few shared notebooks.</b> Focusers share in small groups: almost the full quality with most of
+          the speed. Used by Llama and other popular models.</li>
+      </ol>
+    </div></details>
+  </section>
+</main>
+
+<div class="foot">
+  Toy models, real math — every weight is computed live. One idea, many variants.
+</div>
+
+<script>
+/* ================= ATTENTION MECHANISMS PLAYGROUND ================= */
+'use strict';
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const CY='#22D3EE',VI='#6C5CE7',RO='#FB7185',GR='#10B981',AM='#F59E0B',MU='#8F8DB8';
+function softmax(a){const m=Math.max(...a);const e=a.map(x=>Math.exp(x-m));const s=e.reduce((p,c)=>p+c,0);return e.map(x=>x/s);}
+function dot(a,b){let s=0;for(let i=0;i<a.length;i++)s+=a[i]*b[i];return s;}
+function fitC(cv,cssH){cv.style.width='100%';cv.style.height=cssH+'px';const w=cv.clientWidth||600,dpr=window.devicePixelRatio||1;
+  cv.width=Math.round(w*dpr);cv.height=Math.round(cssH*dpr);const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);return{ctx,W:w,H:cssH};}
+function barsHTML(items,max,col){return items.map(([lab,v])=>`<div class="pbar"><span class="lab">${lab}</span><span class="track"><span class="fill" style="width:${(v/max*100).toFixed(0)}%${col?';background:'+col:''}"></span></span><span class="pv">${v.toFixed(2)}</span></div>`).join('');}
+function seeded(s){return()=>{s=(s*9301+49297)%233280;return s/233280;};}
+
+$$('#tabs .tab').forEach(t=>t.addEventListener('click',()=>{
+  $$('#tabs .tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');
+  $$('.panel').forEach(p=>p.classList.remove('active'));$('#p-'+t.dataset.tab).classList.add('active');
+  const d=t.dataset.tab;
+  if(d==='core')coDraw(); if(d==='scoring')scDraw(); if(d==='place')plDraw();
+  if(d==='patterns')ptDraw(); if(d==='softhard')shDraw(); if(d==='heads'){hdMode==='heads'?hdDraw():hdShare();}
+}));
+
+/* shared sentence embeddings — dims [ent,obj,act,neg,pron,state,det] */
+const SENTS={
+ 'the animal didn\u2019t cross the street because it was tired':[
+   ['the',[0,0,0,0,0,0,1]],['animal',[1,0,0,0,0,0,0]],['didn\u2019t',[0,0,.4,.6,0,0,0]],['cross',[0,0,1,0,0,0,0]],
+   ['the',[0,0,0,0,0,0,1]],['street',[0,1,0,0,0,0,.1]],['because',[0,0,0,.2,0,0,.3]],['it',[.6,0,0,0,.25,0,0]],
+   ['was',[0,0,0,0,0,.4,.3]],['tired',[.35,0,0,0,0,1,0]]],
+ 'the cat sat because it was sleepy':[
+   ['the',[0,0,0,0,0,0,1]],['cat',[1,0,0,0,0,0,0]],['sat',[0,0,1,0,0,0,0]],['because',[0,0,0,.2,0,0,.3]],
+   ['it',[.6,0,0,0,.25,0,0]],['was',[0,0,0,0,0,.4,.3]],['sleepy',[.35,0,0,0,0,1,0]]]
+};
+const GAIN=3, DIM=7;
+
+/* ============================================================ 01 CORE ============================================================ */
+let coSent=Object.keys(SENTS)[0], coQ=7, coScale=1;
+function attnMatrix(toks,scale,gain){const n=toks.length,d=toks[0][1].length,sc=scale?1/Math.sqrt(d):1;
+  return toks.map(a=>softmax(toks.map(b=>dot(a[1],b[1])*gain*gain*sc)));}
+function coDraw(){
+  const toks=SENTS[coSent];coQ=Math.min(coQ,toks.length-1);
+  const M=attnMatrix(toks,coScale,GAIN),n=toks.length,w=M[coQ];
+  $('#co-tokens').innerHTML=toks.map((t,i)=>`<span class="t ${i===coQ?'q':''}" data-i="${i}">${t[0]}</span>`).join('');
+  $$('#co-tokens .t').forEach(el=>el.addEventListener('click',()=>{coQ=+el.dataset.i;coDraw();}));
+  $('#co-qword').textContent='\u201c'+toks[coQ][0]+'\u201d';
+  const order=w.map((v,i)=>[toks[i][0],v]).sort((a,b)=>b[1]-a[1]);
+  $('#co-bars').innerHTML=barsHTML(order.slice(0,6),Math.max(...w));
+  const best=order[0];
+  $('#co-read').innerHTML=`\u201c${toks[coQ][0]}\u201d attends most to <span class="good">\u201c${best[0]}\u201d</span> (${(best[1]*100).toFixed(0)}%). ${toks[coQ][0]==='it'?'Attention resolves what \u201cit\u201d refers to.':'Each word blends in the words it attends to.'}`;
+  const {ctx,W}=fitC($('#co-canvas'),Math.min(360,60+n*26));const m=64,cell=(W-m-12)/n;
+  ctx.clearRect(0,0,W,60+n*cell);ctx.font="10px 'JetBrains Mono',monospace";
+  toks.forEach((t,i)=>{ctx.fillStyle=i===coQ?VI:MU;ctx.textAlign='right';ctx.fillText(t[0],m-6,m+i*cell+cell/2+3);});
+  toks.forEach((t,j)=>{ctx.save();ctx.translate(m+j*cell+cell/2,m-6);ctx.rotate(-Math.PI/4);ctx.fillStyle=MU;ctx.textAlign='left';ctx.fillText(t[0],0,0);ctx.restore();});
+  for(let i=0;i<n;i++)for(let j=0;j<n;j++){ctx.fillStyle=`rgba(34,211,238,${0.05+M[i][j]*0.95})`;ctx.fillRect(m+j*cell+.5,m+i*cell+.5,cell-1,cell-1);
+    if(i===coQ){ctx.strokeStyle=VI;ctx.lineWidth=2;ctx.strokeRect(m+j*cell+.5,m+i*cell+.5,cell-1,cell-1);}}
+}
+$('#co-sents').innerHTML=Object.keys(SENTS).map((sname,i)=>`<button class="chip" data-i="${i}">${sname.split(' ').slice(0,4).join(' ')}\u2026</button>`).join('');
+$$('#co-sents .chip').forEach(c=>c.addEventListener('click',()=>{coSent=Object.keys(SENTS)[+c.dataset.i];coQ=Math.min(coQ,SENTS[coSent].length-1);coDraw();}));
+$('#co-scale').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;$$('#co-scale button').forEach(x=>x.classList.remove('on'));b.classList.add('on');coScale=+b.dataset.s;$('#co-sval').textContent=coScale?'on':'off';coDraw();});
+
+/* ============================================================ 02 SCORING ============================================================ */
+let scFn='dot', scQ=7;
+const r0=seeded(11);
+const Wq=Array.from({length:4},()=>Array.from({length:DIM},()=>r0()*2-1));
+const Wk=Array.from({length:4},()=>Array.from({length:DIM},()=>r0()*2-1));
+const Vh=Array.from({length:4},()=>r0()*2-1);
+function addScore(q,k){const h=[0,0,0,0];for(let i=0;i<4;i++){let s=0;for(let j=0;j<DIM;j++)s+=Wq[i][j]*q[j]+Wk[i][j]*k[j];h[i]=Math.tanh(s);}return dot(Vh,h)*2.2;}
+function scDraw(){
+  const d=+$('#sc-d').value;$('#sc-dv').textContent=d;
+  const toks=SENTS[coSent];scQ=Math.min(scQ,toks.length-1);
+  $('#sc-tokens').innerHTML=toks.map((t,i)=>`<span class="t ${i===scQ?'q':''}" data-i="${i}">${t[0]}</span>`).join('');
+  $$('#sc-tokens .t').forEach(el=>el.addEventListener('click',()=>{scQ=+el.dataset.i;scDraw();}));
+  $('#sc-qword').textContent='\u201c'+toks[scQ][0]+'\u201d';
+  const q=toks[scQ][1];
+  const scores=toks.map(t=>{const base=dot(q,t[1])*GAIN*GAIN;
+    if(scFn==='dot')return base*Math.sqrt(d/7);
+    if(scFn==='scaled')return base*Math.sqrt(d/7)/Math.sqrt(d)*Math.sqrt(7);
+    return addScore(q,t[1]);});
+  const w=softmax(scores);const order=w.map((v,i)=>[toks[i][0],v]).sort((a,b)=>b[1]-a[1]);
+  $('#sc-bars').innerHTML=barsHTML(order.slice(0,7),Math.max(...w));
+  const mx=Math.max(...w);
+  $('#sc-fn button').classList;
+  let note;
+  if(scFn==='dot')note=d>40?`<span class="bad">Unscaled at d=${d}:</span> the dot products blow up, softmax saturates and attention collapses onto one token (max weight ${(mx*100).toFixed(0)}%).`:`Plain dot product q\u1d40k. Fast, but its magnitude grows with dimension \u2014 raise d\u2096.`;
+  else if(scFn==='scaled')note=`Scaled dot q\u1d40k/\u221ad\u2096 stays stable as d grows (max weight ${(mx*100).toFixed(0)}%) \u2014 that\u2019s the fix used in Transformers. Compare against Dot at high d\u2096.`;
+  else note=`Additive: a tiny net v\u1d40tanh(W_q q + W_k k) learns compatibility \u2014 a different shape, works even if query/key sizes differ. Independent of d\u2096 scaling.`;
+  $('#sc-note').innerHTML=note;
+}
+$('#sc-fn').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;$$('#sc-fn button').forEach(x=>x.classList.remove('on'));b.classList.add('on');scFn=b.dataset.f;$('#sc-wfield');scDraw();});
+$('#sc-d').addEventListener('input',scDraw);
+
+/* ============================================================ 03 SELF vs CROSS ============================================================ */
+let plMode='self';
+const SRC=['the','cat','drinks','the','milk'], TGT=['le','chat','boit','le','lait'], SC=[0,1,2,0,3], TC=[0,1,2,0,3];
+function plDraw(){
+  $('#pl-title').textContent=plMode==='self'?'Self-attention':'Cross-attention';
+  $('#pl-desc').textContent=plMode==='self'?'Q, K and V all come from the same sentence — every token relates to every other.':'Q comes from the target (decoder); K and V come from the source (encoder). The output aligns to the input.';
+  const {ctx,W,H}=fitC($('#pl-canvas'),440);ctx.clearRect(0,0,W,H);
+  if(plMode==='self'){
+    $('#pl-seqs').innerHTML='SEQUENCE: <span style="color:var(--cyan)">'+SENTS[coSent].map(t=>t[0]).join(' ')+'</span>';
+    const toks=SENTS[coSent],M=attnMatrix(toks,1,GAIN),n=toks.length,m=70,cell=Math.min((W-m-14)/n,(H-m-14)/n);
+    ctx.font="11px 'JetBrains Mono',monospace";
+    toks.forEach((t,i)=>{ctx.fillStyle=MU;ctx.textAlign='right';ctx.fillText(t[0],m-6,m+i*cell+cell/2+3);});
+    toks.forEach((t,j)=>{ctx.save();ctx.translate(m+j*cell+cell/2,m-6);ctx.rotate(-Math.PI/4);ctx.fillStyle=MU;ctx.textAlign='left';ctx.fillText(t[0],0,0);ctx.restore();});
+    for(let i=0;i<n;i++)for(let j=0;j<n;j++){ctx.fillStyle=`rgba(34,211,238,${0.06+M[i][j]*0.94})`;ctx.fillRect(m+j*cell+.5,m+i*cell+.5,cell-1,cell-1);}
+    $('#pl-cap').textContent='self-attention matrix · square, one sequence attending to itself';
+    $('#pl-read').innerHTML='Every token (row) distributes attention over every token of the <b>same</b> sentence (columns).';
+  }else{
+    $('#pl-seqs').innerHTML='SOURCE: <span style="color:var(--cyan)">'+SRC.join(' ')+'</span> &nbsp; TARGET: <span style="color:var(--violet)">'+TGT.join(' ')+'</span>';
+    const M=TGT.map((_,i)=>softmax(SRC.map((_,j)=>(TC[i]===SC[j]?2.2:0)-Math.abs(i-j)*0.25)));
+    const topY=90,botY=H-70,sx=SRC.map((_,j)=>70+j*((W-140)/(SRC.length-1))),tx=TGT.map((_,i)=>70+i*((W-140)/(TGT.length-1)));
+    for(let i=0;i<TGT.length;i++)for(let j=0;j<SRC.length;j++){const wgt=M[i][j];if(wgt<0.06)continue;ctx.strokeStyle=`rgba(108,92,231,${wgt})`;ctx.lineWidth=1+wgt*6;ctx.beginPath();ctx.moveTo(tx[i],botY-14);ctx.lineTo(sx[j],topY+14);ctx.stroke();}
+    ctx.font="13px 'JetBrains Mono',monospace";ctx.textAlign='center';
+    SRC.forEach((wd,j)=>{ctx.fillStyle=CY;ctx.fillText(wd,sx[j],topY);});
+    TGT.forEach((wd,i)=>{ctx.fillStyle=VI;ctx.fillText(wd,tx[i],botY+4);});
+    ctx.fillStyle=MU;ctx.font="10px 'JetBrains Mono',monospace";ctx.fillText('source (keys/values, from encoder)',W/2,topY-24);ctx.fillText('target (queries, from decoder)',W/2,botY+30);
+    $('#pl-cap').textContent='cross-attention as a soft alignment · each target word links to its source word';
+    $('#pl-read').innerHTML='Target queries attend to source keys/values \u2014 the decoder \u201clooks back\u201d at the input.';
+  }
+}
+$('#pl-mode').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;$$('#pl-mode button').forEach(x=>x.classList.remove('on'));b.classList.add('on');plMode=b.dataset.m;plDraw();});
+
+/* ============================================================ 04 PATTERNS ============================================================ */
+let ptKind='full';
+function ptMask(kind,n,w){
+  const m=Array.from({length:n},()=>Array(n).fill(0));
+  for(let i=0;i<n;i++)for(let j=0;j<n;j++){
+    if(kind==='full')m[i][j]=1;
+    else if(kind==='causal')m[i][j]=j<=i?1:0;
+    else if(kind==='window')m[i][j]=Math.abs(i-j)<=w?1:0;
+    else if(kind==='dilated')m[i][j]=(Math.abs(i-j)%2===0&&Math.abs(i-j)<=2*w+2)?1:0;
+    else if(kind==='block')m[i][j]=(Math.floor(i/(w+2))===Math.floor(j/(w+2)))?1:0;
+    else if(kind==='global'){m[i][j]=Math.abs(i-j)<=w?1:0;if(i<2||j<2)m[i][j]=1;}
+  }
+  return m;
+}
+function ptDraw(){
+  const n=+$('#pt-n').value,w=+$('#pt-w').value;$('#pt-nv').textContent=n;$('#pt-wv').textContent=w;
+  $('#pt-wfield').style.display=(ptKind==='full'||ptKind==='causal')?'none':'block';
+  const m=ptMask(ptKind,n,w);
+  const {ctx,W,H}=fitC($('#pt-canvas'),480);ctx.clearRect(0,0,W,H);
+  const pad=30,cell=Math.min((W-2*pad)/n,(H-2*pad)/n),ox=(W-cell*n)/2,oy=pad;
+  let active=0;
+  for(let i=0;i<n;i++)for(let j=0;j<n;j++){if(m[i][j])active++;ctx.fillStyle=m[i][j]?VI:'rgba(150,148,200,.12)';ctx.fillRect(ox+j*cell+.5,oy+i*cell+.5,cell-1,cell-1);}
+  const density=active/(n*n);
+  ctx.fillStyle=MU;ctx.font="10px 'JetBrains Mono',monospace";ctx.textAlign='center';ctx.fillText('keys \u2192',ox+cell*n/2,oy+cell*n+18);
+  ctx.save();ctx.translate(ox-12,oy+cell*n/2);ctx.rotate(-Math.PI/2);ctx.fillText('\u2190 queries',0,0);ctx.restore();
+  const names={full:'Full / global',causal:'Causal (masked)',window:'Sliding window',dilated:'Dilated / strided',block:'Block-local',global:'Global + local'};
+  const notes={full:'Every token sees all others. Most expressive, O(n\u00b2) compute.',causal:'Each token sees only the past \u2014 required for generation.',window:'Only nearby tokens. O(n\u00b7w) \u2014 scales to long sequences.',dilated:'Skip positions to cover more range cheaply.',block:'Attend within fixed blocks \u2014 cheap and cache-friendly.',global:'A few global tokens everyone attends to, plus a local window.'};
+  $('#pt-read').innerHTML=`<b>${names[ptKind]}</b> \u00b7 density = <span class="${density>0.6?'warn':'good'}">${(density*100).toFixed(0)}%</span> of cells active.<br><span style="color:${MU}">${notes[ptKind]}</span>`;
+}
+$('#pt-kind').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;$$('#pt-kind button').forEach(x=>x.classList.remove('on'));b.classList.add('on');ptKind=b.dataset.k;ptDraw();});
+$('#pt-w').addEventListener('input',ptDraw);$('#pt-n').addEventListener('input',ptDraw);
+
+/* ============================================================ 05 SOFT vs HARD ============================================================ */
+let shMode='soft';
+const SH_KEYS=['k1','k2','k3','k4','k5','k6'], SH_SCORE=[0.4,1.8,0.9,2.4,0.6,1.1];
+function shDraw(){
+  const t=+$('#sh-t').value;$('#sh-tv').textContent=t.toFixed(1);
+  const w=softmax(SH_SCORE.map(s=>s/t));
+  let disp,note;
+  if(shMode==='soft'){disp=w;
+    note=`<b>Soft:</b> output = \u03a3 weight\u00b7value \u2014 a smooth blend of all keys (weights sum to 1). Differentiable \u2192 trains with plain back-prop. Lower the temperature to sharpen toward one key.`;
+  }else{const mi=w.indexOf(Math.max(...w));disp=w.map((_,i)=>i===mi?1:0);
+    note=`<b>Hard:</b> attend to exactly one key (the argmax \u2014 <b>${SH_KEYS[mi]}</b>). Cheaper & interpretable, but \u201cpick one\u201d has no gradient \u2192 needs RL / reparameterization to train.`;}
+  const mx=Math.max(...disp,0.001);
+  $('#sh-bars').innerHTML=SH_KEYS.map((k,i)=>`<div class="pbar"><span class="lab">${k}</span><span class="track"><span class="fill" style="width:${(disp[i]/mx*100).toFixed(0)}%;background:${shMode==='hard'?'linear-gradient(90deg,'+RO+','+AM+')':''}"></span></span><span class="pv">${disp[i].toFixed(2)}</span></div>`).join('');
+  $('#sh-read').innerHTML=`Softmax temperature = <b>${t.toFixed(1)}</b>. ${t<0.6?'Very peaked \u2014 soft attention already looks almost hard.':t>1.8?'Flat \u2014 attention spread across many keys.':'Balanced.'}`;
+  $('#sh-note').innerHTML=note;
+}
+$('#sh-mode').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;$$('#sh-mode button').forEach(x=>x.classList.remove('on'));b.classList.add('on');shMode=b.dataset.m;shDraw();});
+$('#sh-t').addEventListener('input',shDraw);
+
+/* ============================================================ 06 HEADS + MQA/GQA ============================================================ */
+let hdMode='heads', hdHead=0, hdQ=1;
+const HSENT=[{w:'the'},{w:'dog',ent:1,noun:1},{w:'saw',verb:1},{w:'the'},{w:'cat',ent:1,noun:1},{w:'and'},{w:'it',pron:1},{w:'barked',verb:1}];
+const HNAMES=['Local (neighbours)','Coreference','Predicate (verb\u2194noun)'];
+function headScore(h,i,j){const a=HSENT[i],b=HSENT[j];
+  if(h===0)return -Math.abs(i-j)*1.6+(i===j?0.4:0);
+  if(h===1)return (a.pron?1:0)*(b.noun?1:0)*3+(a.noun?1:0)*(b.noun?1:0)*1+(i===j?0.5:0)+0.15;
+  return (a.verb?1:0)*(b.noun?1:0)*3+(a.noun?1:0)*(b.verb?1:0)*3+(i===j?0.4:0)+0.15;}
+function hdDraw(){
+  hdQ=Math.min(hdQ,HSENT.length-1);
+  $('#hd-tokens').innerHTML=HSENT.map((t,i)=>`<span class="t ${i===hdQ?'q':''}" data-i="${i}">${t.w}</span>`).join('');
+  $$('#hd-tokens .t').forEach(el=>el.addEventListener('click',()=>{hdQ=+el.dataset.i;hdDraw();}));
+  $('#hd-headname').textContent=HNAMES[hdHead];$('#hd-qword').textContent='\u201c'+HSENT[hdQ].w+'\u201d';
+  const w=softmax(HSENT.map((_,j)=>headScore(hdHead,hdQ,j)));
+  const order=w.map((v,i)=>[HSENT[i].w,v]).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  $('#hd-bars').innerHTML=barsHTML(order,Math.max(...w));
+  $('#hd-read').innerHTML=`In the <b>${HNAMES[hdHead]}</b> head, \u201c${HSENT[hdQ].w}\u201d attends most to <span class="good">\u201c${order[0][0]}\u201d</span>. Switch heads \u2014 the same word attends elsewhere.`;
+}
+$('#hd-pick').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;$$('#hd-pick button').forEach(x=>x.classList.remove('on'));b.classList.add('on');hdHead=+b.dataset.h;hdDraw();});
+let hdKV='mha';
+function hdShare(){
+  const {ctx,W,H}=fitC($('#hd-canvas'),330);ctx.clearRect(0,0,W,H);
+  const Q=8, kv=hdKV==='mha'?8:hdKV==='gqa'?2:1;
+  const qy=70, ky=H-70, qx=i=>60+i*((W-120)/(Q-1)), kx=i=>60+(kv===1?(W-120)/2:i*((W-120)/(kv-1)));
+  // mapping query head -> kv head
+  function map(i){return hdKV==='mha'?i:hdKV==='gqa'?Math.floor(i/(Q/kv)):0;}
+  for(let i=0;i<Q;i++){ctx.strokeStyle='rgba(108,92,231,.5)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(qx(i),qy+14);ctx.lineTo(kx(map(i)),ky-14);ctx.stroke();}
+  for(let i=0;i<Q;i++){ctx.beginPath();ctx.arc(qx(i),qy,13,0,7);ctx.fillStyle=VI;ctx.fill();ctx.fillStyle='#fff';ctx.font="9px 'JetBrains Mono',monospace";ctx.textAlign='center';ctx.fillText('Q'+(i+1),qx(i),qy+3);}
+  for(let i=0;i<kv;i++){ctx.beginPath();ctx.arc(kx(i),ky,15,0,7);ctx.fillStyle=CY;ctx.fill();ctx.fillStyle='#06303a';ctx.font="9px 'JetBrains Mono',monospace";ctx.textAlign='center';ctx.fillText('KV'+(i+1),kx(i),ky+3);}
+  ctx.fillStyle=MU;ctx.font="11px 'JetBrains Mono',monospace";ctx.textAlign='center';
+  ctx.fillText('8 query heads',W/2,qy-26);ctx.fillText(kv+' key/value head'+(kv>1?'s':''),W/2,ky+34);
+  const save=hdKV==='mha'?'baseline':hdKV==='gqa'?'\u224875% smaller KV cache':'\u22488\u00d7 smaller KV cache';
+  const names={mha:'Multi-Head Attention',gqa:'Grouped-Query Attention',mqa:'Multi-Query Attention'};
+  $('#hd-kvread').innerHTML=`<b>${names[hdKV]}</b> \u00b7 8 query heads \u2192 ${kv} KV head${kv>1?'s':''}.<br>KV cache: <span class="${hdKV==='mha'?'':'good'}">${save}</span>. ${hdKV==='mha'?'Best quality, biggest memory.':hdKV==='mqa'?'Fastest decoding, small quality cost.':'Near-MHA quality, most of MQA\u2019s speed (Llama-2/3).'}`;
+}
+$('#hd-mode').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;$$('#hd-mode button').forEach(x=>x.classList.remove('on'));b.classList.add('on');hdMode=b.dataset.m;
+  $('#hd-heads').classList.toggle('hidden',hdMode!=='heads');$('#hd-share').classList.toggle('hidden',hdMode!=='share');hdMode==='heads'?hdDraw():hdShare();});
+$('#hd-kv').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;$$('#hd-kv button').forEach(x=>x.classList.remove('on'));b.classList.add('on');hdKV=b.dataset.k;hdShare();});
+
+/* init */
+coDraw();
+
+</script>
+</body>
+</html>
