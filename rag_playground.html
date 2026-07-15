@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG Playground — Claims Adjuster's Co-Pilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EDF0F3;
+  --panel:#FFFFFF;
+  --ink:#101820;
+  --muted:#5C6B7A;
+  --rule:#CDD6DE;
+  --indigo:#2B2FD6;
+  --indigo-soft:#E4E5FB;
+  --amber:#B46A12;
+  --amber-soft:#F6E9D6;
+  --teal:#0E7C6B;
+  --teal-soft:#DCEFEB;
+  --radius:3px;
+  --shadow:0 1px 0 var(--rule);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  font-size:15px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1240px;margin:0 auto;padding:32px 24px 72px}
+
+/* ---- header ---- */
+header{border-bottom:1.5px solid var(--ink);padding-bottom:20px;margin-bottom:24px}
+.eyebrow{
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);margin:0 0 10px
+}
+h1{
+  font-family:"Space Grotesk",sans-serif;font-weight:700;
+  font-size:clamp(30px,4.4vw,46px);line-height:1.03;letter-spacing:-.02em;margin:0 0 10px
+}
+h1 em{font-style:normal;color:var(--indigo)}
+.lede{max-width:66ch;color:var(--muted);margin:0}
+
+/* ---- grid ---- */
+.grid{display:grid;grid-template-columns:300px minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:940px){.grid{grid-template-columns:1fr}}
+
+.panel{
+  background:var(--panel);border:1px solid var(--rule);border-radius:var(--radius);
+  padding:16px 16px 18px;
+}
+.panel + .panel{margin-top:16px}
+.panel h2{
+  font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:500;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);margin:0 0 14px;
+  padding-bottom:8px;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;gap:8px
+}
+.panel h2 span{color:var(--ink)}
+
+/* ---- controls ---- */
+label.field{display:block;font-size:12px;font-weight:600;margin:0 0 6px}
+textarea{
+  width:100%;min-height:76px;resize:vertical;padding:9px 10px;
+  border:1px solid var(--rule);border-radius:var(--radius);background:#FBFCFD;
+  font-family:"IBM Plex Sans",sans-serif;font-size:13.5px;color:var(--ink)
+}
+textarea:focus,button:focus-visible,select:focus{outline:2px solid var(--indigo);outline-offset:1px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
+.chip{
+  font-size:12px;padding:5px 9px;border:1px solid var(--rule);background:#F6F8FA;
+  border-radius:99px;cursor:pointer;font-family:inherit;color:var(--ink);text-align:left
+}
+.chip:hover{border-color:var(--indigo);color:var(--indigo)}
+.chip[aria-pressed="true"]{background:var(--indigo);border-color:var(--indigo);color:#fff}
+
+.ctrl{padding:11px 0;border-bottom:1px dotted var(--rule)}
+.ctrl:last-child{border-bottom:0;padding-bottom:0}
+.ctrl-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.ctrl-top strong{font-size:13px;font-weight:600}
+.ctrl-note{font-size:11.5px;color:var(--muted);margin:4px 0 0;line-height:1.35}
+.seg{display:flex;border:1px solid var(--rule);border-radius:var(--radius);overflow:hidden;margin-top:7px}
+.seg button{
+  flex:1;border:0;background:#F6F8FA;padding:6px 4px;cursor:pointer;
+  font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted)
+}
+.seg button + button{border-left:1px solid var(--rule)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.switch{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.switch input{appearance:none;width:34px;height:19px;border-radius:99px;background:#D6DDE4;position:relative;cursor:pointer;margin:0;flex:0 0 auto;transition:background .16s}
+.switch input::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:99px;background:#fff;transition:transform .16s}
+.switch input:checked{background:var(--indigo)}
+.switch input:checked::after{transform:translateX(15px)}
+input[type=range]{width:100%;accent-color:var(--indigo);margin-top:8px}
+.mono{font-family:"IBM Plex Mono",monospace}
+.val{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--indigo)}
+
+/* ---- guide ---- */
+.guide{
+  background:var(--panel);border:1px solid var(--rule);border-radius:var(--radius);
+  margin-bottom:20px;overflow:hidden
+}
+.guide > summary{
+  list-style:none;cursor:pointer;padding:14px 16px;display:flex;justify-content:space-between;
+  align-items:center;gap:12px;font-family:"Space Grotesk",sans-serif;font-weight:500;font-size:15px
+}
+.guide > summary::-webkit-details-marker{display:none}
+.guide > summary:hover{background:#F7F9FB}
+.guide > summary .hint{
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--indigo)
+}
+.guide[open] > summary{border-bottom:1px solid var(--rule)}
+.guide[open] > summary .hint::after{content:" — hide"}
+.guide:not([open]) > summary .hint::after{content:" — read first"}
+.guide-body{padding:18px 16px 20px}
+.guide-intro{max-width:74ch;margin:0 0 20px;color:var(--muted);font-size:14px}
+.guide-intro b{color:var(--ink);font-weight:600}
+
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border-top:1px solid var(--rule)}
+@media (max-width:900px){.steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:600px){.steps{grid-template-columns:1fr}}
+.step{padding:16px 18px 18px 0;border-bottom:1px solid var(--rule)}
+.step{border-right:1px solid var(--rule);padding-left:18px}
+.steps .step:nth-child(3n){border-right:0}
+@media (max-width:900px){.steps .step:nth-child(3n){border-right:1px solid var(--rule)} .steps .step:nth-child(2n){border-right:0}}
+@media (max-width:600px){.step{border-right:0!important}}
+.step-num{
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;color:var(--indigo);
+  display:block;margin-bottom:6px
+}
+.step h3{font-family:"Space Grotesk",sans-serif;font-size:15px;font-weight:500;margin:0 0 6px;letter-spacing:-.01em}
+.step p{margin:0 0 8px;font-size:13px;color:var(--muted);line-height:1.5}
+.step .watch{
+  font-size:12px;color:var(--ink);border-left:2px solid var(--teal);padding-left:8px;margin:0
+}
+.step .watch b{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--teal);
+  text-transform:uppercase;letter-spacing:.08em;font-weight:500;display:block}
+.step code{font-family:"IBM Plex Mono",monospace;font-size:11.5px;background:#F0F3F6;padding:1px 4px;border-radius:2px}
+
+.try{margin-top:20px;border:1px solid var(--amber);border-radius:var(--radius);background:var(--amber-soft)}
+.try h3{
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--amber);margin:0;padding:10px 14px;border-bottom:1px solid rgba(180,106,18,.3)
+}
+.try ol{margin:0;padding:12px 14px 14px 32px;font-size:13.5px}
+.try li{margin-bottom:9px;color:var(--ink)}
+.try li:last-child{margin-bottom:0}
+.try li b{font-weight:600}
+.try li span{color:#7A5410}
+.honest{
+  margin-top:16px;font-size:12.5px;color:var(--muted);border-top:1px dotted var(--rule);padding-top:12px;max-width:80ch
+}
+
+/* ---- meaning space ---- */
+.space-head{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}
+#space{width:100%;height:auto;display:block;touch-action:none}
+.pt{transition:transform .55s cubic-bezier(.4,0,.2,1)}
+.pt circle{transition:r .3s,fill .3s,opacity .3s}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:8px;font-size:11.5px;color:var(--muted)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:9px;margin-right:5px;vertical-align:-1px}
+
+/* ---- results ---- */
+.stage{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:840px){.stage{grid-template-columns:1fr}}
+.row{padding:8px 0;border-bottom:1px solid #EEF1F4}
+.row:last-child{border-bottom:0}
+.row-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.row-title{font-size:13px;font-weight:600}
+.score{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--muted)}
+.bar{height:4px;background:#EDF0F3;border-radius:2px;margin-top:6px;overflow:hidden}
+.bar span{display:block;height:100%;background:var(--indigo);transition:width .4s}
+.row.kept .bar span{background:var(--teal)}
+.row.dropped{opacity:.62}
+.row.dropped .row-title{text-decoration:line-through;text-decoration-color:var(--amber)}
+.row.dropped .bar span{background:var(--amber)}
+.tag{
+  font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.04em;
+  padding:1px 5px;border-radius:2px;background:#F0F3F6;color:var(--muted);margin-right:4px;white-space:nowrap
+}
+.tag.warn{background:var(--amber-soft);color:var(--amber)}
+.tag.keep{background:var(--teal-soft);color:var(--teal)}
+.tag.rank{background:var(--indigo-soft);color:var(--indigo)}
+.snippet{font-size:12px;color:var(--muted);margin:4px 0 0}
+
+pre.prompt{
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;line-height:1.6;margin:0;
+  white-space:pre-wrap;word-break:break-word;color:var(--ink);
+  background:#F7F9FB;border:1px solid var(--rule);border-radius:var(--radius);padding:11px;max-height:320px;overflow:auto
+}
+pre.prompt b{color:var(--indigo);font-weight:500}
+.answer{border-left:3px solid var(--teal);padding:2px 0 2px 12px}
+.answer p{margin:0 0 10px;font-size:14.5px}
+.answer cite{font-style:normal;color:var(--teal);font-family:"IBM Plex Mono",monospace;font-size:11px}
+.answer.fail{border-left-color:var(--amber)}
+.answer.fail cite{color:var(--amber)}
+.srcs{font-size:12px;color:var(--muted);margin:0}
+.srcs li{margin-bottom:3px}
+.verdict{
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+  padding:3px 7px;border-radius:2px;display:inline-block;margin-bottom:10px
+}
+.verdict.ok{background:var(--teal-soft);color:var(--teal)}
+.verdict.bad{background:var(--amber-soft);color:var(--amber)}
+footer{margin-top:28px;padding-top:14px;border-top:1px solid var(--rule);font-size:12px;color:var(--muted)}
+footer a{color:var(--indigo)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">RAG Playground · Use case 01 · Unstructured data</p>
+  <h1>Turn the knobs. <em>Watch retrieval decide the answer.</em></h1>
+  <p class="lede">Everything below really runs: the clauses are embedded in your browser, scored by cosine similarity, filtered, re-ranked, and assembled into a prompt. The answer only ever uses what retrieval put on the desk — so break retrieval and watch the answer break with it.</p>
+</header>
+
+<details class="guide" open>
+  <summary>
+    <span>How this works — read before you touch the knobs</span>
+    <span class="hint">6 steps</span>
+  </summary>
+  <div class="guide-body">
+    <p class="guide-intro">You are an insurance claims adjuster's co-pilot. Your knowledge base is <b>14 real clauses</b> pulled from five systems: two policy wordings (the current <code>H-2019</code> and the retired <code>G-2018</code>), a claims handbook, a prior settled decision, and one adjuster email. A question comes in. Six things happen between the question and the answer — and <b>you control four of them.</b></p>
+
+    <div class="steps">
+
+      <div class="step">
+        <span class="step-num">STEP 01 · OFFLINE</span>
+        <h3>Collect the sources</h3>
+        <p>Connectors read every system on a schedule and drop the raw content into one pile, keeping filename, version and date intact. This step is already done for you — the 14 clauses are the pile.</p>
+        <p class="watch"><b>The lesson</b>Miss a source here and the model is permanently blind to it. Coverage of the input is the first ceiling on answer quality.</p>
+      </div>
+
+      <div class="step">
+        <span class="step-num">STEP 02 · OFFLINE · YOURS</span>
+        <h3>Cut into chunks, tag each one</h3>
+        <p>A 180-page policy is useless to a model whole. The chunker splits it and stamps each piece with metadata: policy variant, date, source. Use the <b>Chunking</b> control to choose how the cut is made.</p>
+        <p class="watch"><b>Watch this</b><code>Section-aware</code> gives one clause per chunk, whole. <code>Fixed 180 chars</code> slices blindly — a chunk can score well and still not carry the fact you needed.</p>
+      </div>
+
+      <div class="step">
+        <span class="step-num">STEP 03 · OFFLINE</span>
+        <h3>Embed into meaning space</h3>
+        <p>Each chunk becomes a vector — a list of numbers standing for its meaning. Clauses about the same idea land near each other even when the words differ, because <code>wind</code> and <code>storm</code> map to the same concept.</p>
+        <p class="watch"><b>Watch this</b>The scatter plot is that space, flattened to 2-D. Distance is real: it comes from the actual vectors, recomputed on every keystroke.</p>
+      </div>
+
+      <div class="step">
+        <span class="step-num">STEP 04 · LIVE · YOURS</span>
+        <h3>The adjuster asks</h3>
+        <p>Pick a preset question or type your own. The system quietly attaches the claim's context — policy variant, endorsement, jurisdiction — and embeds the question with the <b>same model</b> that embedded the chunks, so "near" means something.</p>
+        <p class="watch"><b>Watch this</b>The black diamond is your question. Everything near it is what the system thinks is relevant, before any rule is applied.</p>
+      </div>
+
+      <div class="step">
+        <span class="step-num">STEP 05 · LIVE · YOURS</span>
+        <h3>Retrieve, filter, re-rank</h3>
+        <p>Stage one grabs the nearest <b>k</b> candidates — fast, rough, wide. Filters then drop anything from the wrong policy or a superseded version. The <b>re-ranker</b> re-reads what survives and reorders it. Top 3 go forward.</p>
+        <p class="watch"><b>Watch this</b>Struck-through rows were dropped, and the tag says why. Filters fire <em>here</em> — never after the model has spoken, so it can't leak what it shouldn't see.</p>
+      </div>
+
+      <div class="step">
+        <span class="step-num">STEP 06 · LIVE</span>
+        <h3>Generate with citations</h3>
+        <p>The 3 surviving passages, the question, and one strict instruction — <em>answer only from these, cite everything, admit it when you can't</em> — go to the model. The prompt panel shows the exact text. Nothing else reaches the model.</p>
+        <p class="watch"><b>The lesson</b>The model is constrained, not free. If the answer isn't in those 3 passages, it says so. That constraint is the cure for hallucination.</p>
+      </div>
+
+    </div>
+
+    <div class="try">
+      <h3>Three experiments — run them in order</h3>
+      <ol>
+        <li><b>Break the filter.</b> Keep the first question. Turn <b>Filter to policy H-2019</b> off. <span>The retired G-2018 clauses climb into the prompt with a £5,000 limit against H-2019's £25,000. Same question, two contradictory numbers, and the answer's confidence drops. This is why filters exist.</span></li>
+        <li><b>Break the chunker.</b> Filters back on. Switch chunking to <b>Fixed 180 chars</b>. <span>Chunks still retrieve — scores look healthy — but the clause got cut in half and the fact went missing. The model refuses. A confident-looking pipeline that answers nothing is better than one that guesses.</span></li>
+        <li><b>Break the ranking.</b> Section-aware again. Turn the <b>re-ranker</b> off and push <b>candidates</b> to 14. <span>Raw vector similarity alone shuffles the £15,000 and P-441 clauses out of the top 3. More retrieval is not better retrieval.</span></li>
+      </ol>
+    </div>
+
+    <p class="honest">How to read the answer panel: a <b>green verdict</b> means every clause needed to answer correctly made it into the prompt. An <b>amber verdict</b> means retrieval failed, and the panel names the clause that never arrived. When you type your own question there is no known-good answer to check against, so the model simply reports what it retrieved — judge it yourself against the passages.</p>
+  </div>
+</details>
+
+<div class="grid">
+
+  <!-- LEFT: controls -->
+  <div>
+    <div class="panel">
+      <h2>Step 04 <span>Adjuster asks</span></h2>
+      <div class="chips" id="presets"></div>
+      <label class="field" for="q">Question</label>
+      <textarea id="q" spellcheck="false"></textarea>
+      <p class="ctrl-note" id="ctxNote"></p>
+    </div>
+
+    <div class="panel">
+      <h2>Steps 02–05 <span>Pipeline knobs</span></h2>
+
+      <div class="ctrl">
+        <div class="ctrl-top"><strong>Chunking</strong></div>
+        <div class="seg" id="chunkSeg">
+          <button data-v="section" aria-pressed="true">Section-aware</button>
+          <button data-v="fixed" aria-pressed="false">Fixed 180 chars</button>
+        </div>
+        <p class="ctrl-note" id="chunkNote"></p>
+      </div>
+
+      <div class="ctrl">
+        <div class="ctrl-top">
+          <label class="switch"><input type="checkbox" id="fPolicy" checked><strong>Filter to policy H-2019</strong></label>
+        </div>
+        <p class="ctrl-note">Drops clauses from the older G-2018 wording before the model ever sees them.</p>
+      </div>
+
+      <div class="ctrl">
+        <div class="ctrl-top">
+          <label class="switch"><input type="checkbox" id="fDate" checked><strong>Filter to current versions</strong></label>
+        </div>
+        <p class="ctrl-note">Keeps only chunks dated 2024 or later.</p>
+      </div>
+
+      <div class="ctrl">
+        <div class="ctrl-top"><strong>Candidates retrieved</strong><span class="val" id="kVal">8</span></div>
+        <input type="range" id="k" min="3" max="14" value="8">
+        <p class="ctrl-note">Stage one casts a wide net by vector similarity alone.</p>
+      </div>
+
+      <div class="ctrl">
+        <div class="ctrl-top">
+          <label class="switch"><input type="checkbox" id="rerank" checked><strong>Re-ranker</strong></label>
+        </div>
+        <p class="ctrl-note">Re-reads each candidate against the question and reorders. Top 3 survive either way.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: stages -->
+  <div>
+    <div class="panel">
+      <h2 class="space-head">Step 03 <span>Meaning space — 280,000 clauses, 14 of them</span></h2>
+      <svg id="space" viewBox="0 0 760 320" role="img" aria-label="Two-dimensional projection of clause embeddings around the question vector"></svg>
+      <div class="legend">
+        <span><i style="background:var(--teal)"></i>In the prompt</span>
+        <span><i style="background:var(--indigo)"></i>Candidate</span>
+        <span><i style="background:var(--amber)"></i>Filtered out</span>
+        <span><i style="background:#C3CCD5"></i>Not retrieved</span>
+        <span><i style="background:var(--ink)"></i>Your question</span>
+      </div>
+      <p class="ctrl-note">A 2-D projection of the real vectors. Near = similar meaning. Lines mark the clauses handed to the model.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Step 05 <span>Retrieve · filter · re-rank</span></h2>
+      <div id="results"></div>
+    </div>
+
+    <div class="stage" style="margin-top:16px">
+      <div class="panel" style="margin:0">
+        <h2>Step 06a <span>Augmented prompt</span></h2>
+        <pre class="prompt" id="prompt"></pre>
+      </div>
+      <div class="panel" style="margin:0">
+        <h2>Step 06b <span>Grounded answer</span></h2>
+        <div id="answer"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Companion playground to the <a href="https://ketanp23.github.io/genaiclass/rag_visual_explainer.html">RAG Pipeline visual explainer</a>. Embeddings here are TF-IDF with a small synonym map — the same geometry as a real embedding model, at 1/1000th the vocabulary. No network calls, no LLM: the "generator" can only recombine retrieved clauses, which is the whole point.
+</footer>
+</div>
+
+<script>
+/* ============ CORPUS ============ */
+const CLAUSES = [
+ {id:"c1", label:"§ 2.1 Storm cover", doc:"policy_H-2019.pdf", policy:"H-2019", date:"2024-03",
+  text:"Loss caused by wind of force 47 mph or greater is covered for the building and insured structures.",
+  key:"wind of force 47 mph or greater is covered",
+  frag:"storm cover requires wind of 47 mph or more"},
+ {id:"c2", label:"§ 4.2 Outbuildings", doc:"policy_H-2019.pdf", policy:"H-2019", date:"2024-03",
+  text:"Detached structures including garages and sheds are covered up to a limit of £15,000.",
+  key:"garages and sheds are covered up to a limit of £15,000",
+  frag:"a detached garage is an insured outbuilding with a base limit of £15,000"},
+ {id:"c3", label:"P-441 Endorsement", doc:"policy_H-2019.pdf", policy:"H-2019", date:"2024-03",
+  text:"Endorsement P-441 raises the outbuilding limit to £25,000 where listed on the schedule.",
+  key:"raises the outbuilding limit to £25,000",
+  frag:"endorsement P-441 raises that limit to £25,000"},
+ {id:"c4", label:"§ 6 Exclusions", doc:"policy_H-2019.pdf", policy:"H-2019", date:"2024-03",
+  text:"Flood damage is excluded where the property sits in Flood Zone 3 at the date of loss.",
+  key:"Flood damage is excluded where the property sits in Flood Zone 3",
+  frag:"flood damage is excluded for properties in Flood Zone 3"},
+ {id:"c5", label:"§ 8 Claims process", doc:"policy_H-2019.pdf", policy:"H-2019", date:"2024-03",
+  text:"Notification of a loss must be made to the insurer within 30 days of the incident.",
+  key:"must be made to the insurer within 30 days",
+  frag:"a loss must be notified within 30 days of the incident"},
+ {id:"c6", label:"§ 5 Excess", doc:"policy_H-2019.pdf", policy:"H-2019", date:"2024-03",
+  text:"A standard excess of £350 applies per claim, rising to £750 for storm and wind claims.",
+  key:"£350 applies per claim, rising to £750 for storm",
+  frag:"the excess is £350 per claim, but £750 on storm claims"},
+ {id:"c7", label:"§ 3 Escape of water", doc:"policy_H-2019.pdf", policy:"H-2019", date:"2024-03",
+  text:"Damage from a burst pipe is covered; gradual seepage over time is excluded.",
+  key:"burst pipe is covered; gradual seepage",
+  frag:"burst pipes are covered, gradual seepage is not"},
+ {id:"c8", label:"§ 1 Definitions", doc:"policy_H-2019.pdf", policy:"H-2019", date:"2024-03",
+  text:"Building means the main dwelling and its fixtures. Contents means movable property inside it.",
+  key:"Building means the main dwelling",
+  frag:"the building is the main dwelling, contents are movable property"},
+ {id:"c9", label:"G-2018 § 4.2 Outbuildings", doc:"policy_G-2018.pdf", policy:"G-2018", date:"2018-01",
+  text:"Detached structures including garages and sheds are covered up to a limit of £5,000.",
+  key:"limit of £5,000",
+  frag:"under the old G-2018 wording detached structures stop at £5,000"},
+ {id:"c10", label:"G-2018 § 2.1 Storm", doc:"policy_G-2018.pdf", policy:"G-2018", date:"2018-01",
+  text:"Loss caused by wind of force 55 mph or greater is covered for insured structures.",
+  key:"55 mph",
+  frag:"the old G-2018 storm threshold was 55 mph"},
+ {id:"c11", label:"Handbook · Evidence", doc:"claims_handbook.sharepoint", policy:"any", date:"2024-01",
+  text:"Adjusters must photograph storm damage to structures before authorising any repair work.",
+  key:"photograph storm damage to structures before authorising",
+  frag:"storm damage must be photographed before repairs are authorised"},
+ {id:"c12", label:"Prior decision C-31877", doc:"decisions.salesforce", policy:"H-2019", date:"2022-06",
+  text:"Shed roof blown off in a gale under H-2019 was settled at the £15,000 outbuilding limit, pre-P-441.",
+  key:"settled at the £15,000 outbuilding limit",
+  frag:"a comparable shed claim settled at £15,000 before P-441 existed"},
+ {id:"c13", label:"Adjuster email · P-441 scope", doc:"outlook_archive", policy:"H-2019", date:"2024-05",
+  text:"Team: P-441 only applies where the endorsement is actually listed on the customer schedule.",
+  key:"only applies where the endorsement is actually listed",
+  frag:"P-441 only bites if it is listed on the customer's schedule"},
+ {id:"c14", label:"§ 7 Subsidence", doc:"policy_H-2019.pdf", policy:"H-2019", date:"2024-03",
+  text:"Subsidence of the building is covered subject to a separate excess of £1,000.",
+  key:"Subsidence of the building is covered",
+  frag:"subsidence carries a separate £1,000 excess"}
+];
+
+const PRESETS = [
+ {q:"Is wind damage to a detached garage covered under H-2019 with endorsement P-441?",
+  need:["c2","c3","c1"], ctx:"claim C-44219 · policy H-2019 · endorse P-441 · jurisdiction UK"},
+ {q:"What excess applies to a storm claim?", need:["c6"], ctx:"claim C-44219 · policy H-2019 · jurisdiction UK"},
+ {q:"Is flood damage to the house covered?", need:["c4"], ctx:"claim C-51002 · policy H-2019 · Flood Zone 3"},
+ {q:"How long does the customer have to report a loss?", need:["c5"], ctx:"claim C-44219 · policy H-2019"},
+ {q:"Does the policy pay for a burst pipe?", need:["c7"], ctx:"claim C-60110 · policy H-2019"}
+];
+
+/* ============ TOY EMBEDDINGS ============ */
+const STOP = new Set("a an the is are was were be been of to for in on at by or and with as it its that this from any where under over must not no if then than which who whom".split(" "));
+const SYN = {wind:"storm", gale:"storm", storm:"storm", windy:"storm",
+  garage:"outbuilding", shed:"outbuilding", outbuilding:"outbuilding", detached:"outbuilding", structure:"outbuilding",
+  flood:"flood", water:"flood", seepage:"flood", pipe:"flood", burst:"flood",
+  excess:"excess", deductible:"excess", exces:"excess",
+  cover:"cover", covered:"cover", coverage:"cover", pay:"cover", pays:"cover", paid:"cover",
+  limit:"limit", cap:"limit",
+  exclude:"exclude", excluded:"exclude", exclusion:"exclude",
+  notify:"notify", notification:"notify", report:"notify", reported:"notify",
+  damage:"damage", loss:"damage", claim:"claim", claims:"claim",
+  endorsement:"endorsement", endorse:"endorsement"};
+
+function tokens(s){
+  return s.toLowerCase().replace(/[^a-z0-9£§\-\s.]/g," ").split(/[\s.]+/)
+    .map(t=>t.replace(/^\W+|\W+$/g,""))
+    .filter(t=>t && !STOP.has(t) && t.length>1)
+    .map(t=>{ if(SYN[t]) return SYN[t]; const s1=t.replace(/(ies|es|s)$/,""); return SYN[s1]||s1||t; });
+}
+function tf(str){const m={};tokens(str).forEach(t=>m[t]=(m[t]||0)+1);return m;}
+function buildIndex(chunks){
+  const df={};
+  chunks.forEach(c=>{c._tf=tf(c.text+" "+(c.label||""));Object.keys(c._tf).forEach(t=>df[t]=(df[t]||0)+1);});
+  const N=chunks.length;
+  chunks.forEach(c=>{c.vec=norm(weight(c._tf,df,N));});
+  return {df,N};
+}
+function weight(tfm,df,N){const v={};for(const t in tfm){const idf=Math.log((N+1)/((df[t]||0)+1))+1;v[t]=(1+Math.log(tfm[t]))*idf;}return v;}
+function norm(v){let s=0;for(const t in v)s+=v[t]*v[t];s=Math.sqrt(s)||1;const o={};for(const t in v)o[t]=v[t]/s;return o;}
+function cos(a,b){let s=0;const[x,y]=Object.keys(a).length<Object.keys(b).length?[a,b]:[b,a];for(const t in x)if(y[t])s+=x[t]*y[t];return s;}
+
+/* ============ CHUNKERS ============ */
+function chunkSectionAware(){
+  return CLAUSES.map(c=>({id:c.id,label:c.label,doc:c.doc,policy:c.policy,date:c.date,text:c.text,covers:[c.id]}));
+}
+function chunkFixed(size=180){
+  const byDoc={};
+  CLAUSES.forEach(c=>{(byDoc[c.doc]=byDoc[c.doc]||[]).push(c);});
+  const out=[];let n=0;
+  for(const doc in byDoc){
+    const list=byDoc[doc];
+    const joined=list.map(c=>c.text).join(" ");
+    const meta=list[0];
+    for(let i=0;i<joined.length;i+=size){
+      const text=joined.slice(i,i+size);
+      n++;
+      out.push({
+        id:"f"+n, label:doc.split(".")[0]+" · bytes "+i+"–"+(i+text.length),
+        doc, policy:meta.policy, date:meta.date, text,
+        covers:list.filter(c=>text.includes(c.key)).map(c=>c.id)
+      });
+    }
+  }
+  return out;
+}
+
+/* ============ STATE ============ */
+const S={query:PRESETS[0].q, need:PRESETS[0].need, ctx:PRESETS[0].ctx, preset:0,
+  chunking:"section", fPolicy:true, fDate:true, k:8, rerank:true};
+let prevCoords={};
+
+/* ============ PIPELINE ============ */
+function run(){
+  const chunks = S.chunking==="section"?chunkSectionAware():chunkFixed();
+  const idx = buildIndex(chunks);
+  const qvec = norm(weight(tf(S.query), idx.df, idx.N));
+
+  chunks.forEach(c=>{c.cos = cos(qvec,c.vec);});
+  const ranked=[...chunks].sort((a,b)=>b.cos-a.cos);
+  const candidates=ranked.slice(0,S.k);
+  const rest=ranked.slice(S.k);
+
+  candidates.forEach(c=>{
+    c.state="candidate"; c.reason="";
+    if(S.fPolicy && c.policy!=="H-2019" && c.policy!=="any"){c.state="dropped";c.reason="policy ≠ H-2019";}
+    else if(S.fDate && c.date < "2024"){c.state="dropped";c.reason="version superseded";}
+  });
+  rest.forEach(c=>{c.state="unretrieved";});
+
+  let survivors=candidates.filter(c=>c.state==="candidate");
+  if(S.rerank){
+    const qt=new Set(Object.keys(tf(S.query)));
+    survivors.forEach(c=>{
+      const ct=new Set(Object.keys(c._tf));
+      let hit=0; qt.forEach(t=>{if(ct.has(t))hit++;});
+      const overlap = qt.size?hit/qt.size:0;
+      c.rr = 0.55*c.cos + 0.45*overlap;
+    });
+    survivors.sort((a,b)=>b.rr-a.rr);
+  } else {
+    survivors.forEach(c=>c.rr=c.cos);
+  }
+  const context=survivors.slice(0,3);
+  context.forEach((c,i)=>{c.state="kept";c.slot=i+1;});
+
+  renderSpace(chunks,qvec,idx,context);
+  renderResults(candidates,context);
+  renderPrompt(context);
+  renderAnswer(context);
+}
+
+/* ============ MEANING SPACE (classical MDS on the real vectors) ============ */
+function mds(vecs){
+  const n=vecs.length;
+  const D2=[...Array(n)].map(()=>new Array(n).fill(0));
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){const d=1-cos(vecs[i],vecs[j]);D2[i][j]=D2[j][i]=d*d;}
+  const rm=D2.map(r=>r.reduce((a,b)=>a+b,0)/n);
+  const gm=rm.reduce((a,b)=>a+b,0)/n;
+  const B=[...Array(n)].map((_,i)=>[...Array(n)].map((_,j)=>-0.5*(D2[i][j]-rm[i]-rm[j]+gm)));
+  const axis=(seed)=>{
+    let v=[...Array(n)].map((_,i)=>Math.sin(seed*(i+1.7))+0.01);
+    for(let it=0;it<300;it++){
+      const w=B.map(row=>row.reduce((s,x,j)=>s+x*v[j],0));
+      const m=Math.sqrt(w.reduce((s,x)=>s+x*x,0))||1;
+      v=w.map(x=>x/m);
+    }
+    const Bv=B.map(row=>row.reduce((s,x,j)=>s+x*v[j],0));
+    const lam=v.reduce((s,x,i)=>s+x*Bv[i],0);
+    for(let i=0;i<n;i++)for(let j=0;j<n;j++)B[i][j]-=lam*v[i]*v[j];
+    return {v,lam:Math.max(lam,0)};
+  };
+  const a1=axis(1.3), a2=axis(2.9);
+  return a1.v.map((_,i)=>[a1.v[i]*Math.sqrt(a1.lam), a2.v[i]*Math.sqrt(a2.lam)]);
+}
+
+function renderSpace(chunks,qvec,idx,context){
+  const pts=[...chunks.map(c=>c.vec),qvec];
+  let co=mds(pts);
+  // keep orientation stable between renders
+  const ids=chunks.map(c=>c.id);
+  let fx=0,fy=0;
+  ids.forEach((id,i)=>{ if(prevCoords[id]){fx+=prevCoords[id][0]*co[i][0]; fy+=prevCoords[id][1]*co[i][1];} });
+  if(fx<0)co=co.map(p=>[-p[0],p[1]]);
+  if(fy<0)co=co.map(p=>[p[0],-p[1]]);
+  ids.forEach((id,i)=>prevCoords[id]=co[i]);
+
+  const W=760,H=320,PAD=34;
+  const xs=co.map(p=>p[0]),ys=co.map(p=>p[1]);
+  const sx=v=>PAD+(v-Math.min(...xs))/((Math.max(...xs)-Math.min(...xs))||1)*(W-2*PAD);
+  const sy=v=>PAD+(v-Math.min(...ys))/((Math.max(...ys)-Math.min(...ys))||1)*(H-2*PAD);
+  const q=co[co.length-1], qx=sx(q[0]), qy=sy(q[1]);
+
+  const fill={kept:"var(--teal)",candidate:"var(--indigo)",dropped:"var(--amber)",unretrieved:"#C3CCD5"};
+  let s='<g stroke="var(--rule)" stroke-width="1">';
+  for(let g=1;g<4;g++){s+=`<line x1="${g*W/4}" y1="8" x2="${g*W/4}" y2="${H-8}" opacity=".4"/>`;}
+  for(let g=1;g<3;g++){s+=`<line x1="8" y1="${g*H/3}" x2="${W-8}" y2="${g*H/3}" opacity=".4"/>`;}
+  s+='</g>';
+  context.forEach(c=>{
+    const i=ids.indexOf(c.id);
+    s+=`<line x1="${qx}" y1="${qy}" x2="${sx(co[i][0])}" y2="${sy(co[i][1])}" stroke="var(--teal)" stroke-width="1.2" stroke-dasharray="3 3"/>`;
+  });
+  chunks.forEach((c,i)=>{
+    const x=sx(co[i][0]),y=sy(co[i][1]);
+    const r=c.state==="kept"?8:c.state==="candidate"?6:c.state==="dropped"?6:4.5;
+    s+=`<g class="pt" transform="translate(${x},${y})">
+      <circle r="${r}" fill="${fill[c.state]}" opacity="${c.state==="unretrieved"?.6:1}"><title>${esc(c.label)} — similarity ${c.cos.toFixed(3)}</title></circle>
+      ${c.state==="kept"?`<circle r="13" fill="none" stroke="var(--teal)" stroke-width="1"/><text y="-17" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" fill="var(--teal)">${esc(c.label).slice(0,22)}</text>`:""}
+    </g>`;
+  });
+  s+=`<g class="pt" transform="translate(${qx},${qy})">
+      <path d="M0,-9 L9,0 L0,9 L-9,0 Z" fill="var(--ink)"/>
+      <text y="-15" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" fill="var(--ink)">question</text></g>`;
+  document.getElementById("space").innerHTML=s;
+}
+
+/* ============ RESULT LIST ============ */
+function renderResults(candidates,context){
+  const el=document.getElementById("results");
+  if(!candidates.length){el.innerHTML='<p class="snippet">No candidates. Type a question above.</p>';return;}
+  el.innerHTML=candidates.map(c=>{
+    const cls=c.state==="kept"?"row kept":c.state==="dropped"?"row dropped":"row";
+    const tags=[
+      `<span class="tag">${esc(c.policy)}</span>`,
+      `<span class="tag">${esc(c.date)}</span>`,
+      c.state==="kept"?`<span class="tag keep">in prompt [${c.slot}]</span>`:"",
+      c.state==="dropped"?`<span class="tag warn">${esc(c.reason)}</span>`:"",
+      (c.state==="kept"&&S.rerank)?`<span class="tag rank">re-rank ${c.rr.toFixed(2)}</span>`:""
+    ].join("");
+    return `<div class="${cls}">
+      <div class="row-top"><span class="row-title">${esc(c.label)}</span><span class="score">${c.cos.toFixed(3)}</span></div>
+      <div class="bar"><span style="width:${Math.min(100,c.cos*160).toFixed(0)}%"></span></div>
+      <p class="snippet">${tags} ${esc(c.text.slice(0,120))}${c.text.length>120?"…":""}</p>
+    </div>`;
+  }).join("");
+}
+
+/* ============ PROMPT ============ */
+function renderPrompt(context){
+  const p=`<b>SYSTEM</b>
+Answer using only the passages below. Cite the
+clause for every claim. If the passages do not
+support an answer, say so. Do not invent.
+
+<b>CONTEXT</b>  ${esc(S.ctx)}
+
+<b>PASSAGES</b>
+${context.length?context.map(c=>`[${c.slot}] ${esc(c.label)}  ·  ${esc(c.policy)} · ${esc(c.date)}
+    ${esc(c.text)}`).join("\n"):"    (none survived retrieval)"}
+
+<b>QUESTION</b>
+${esc(S.query||"—")}`;
+  document.getElementById("prompt").innerHTML=p;
+}
+
+/* ============ ANSWER ============ */
+function renderAnswer(context){
+  const el=document.getElementById("answer");
+  const covered=new Set();
+  context.forEach(c=>c.covers.forEach(id=>covered.add(id)));
+  const need=S.need||[];
+  const missing=need.filter(id=>!covered.has(id));
+  const byId=id=>CLAUSES.find(c=>c.id===id);
+  const slotOf=id=>{const c=context.find(c=>c.covers.includes(id));return c?c.slot:null;};
+
+  const conflict=context.filter(c=>c.policy==="G-2018");
+  let html="";
+
+  if(need.length && missing.length){
+    html+=`<span class="verdict bad">unsupported · retrieval missed ${missing.length} clause${missing.length>1?"s":""}</span>
+    <div class="answer fail"><p>I can't answer that from the passages I was given. The context covers ${
+      context.map(c=>esc(c.label)).join(", ")||"nothing"}, which doesn't settle the question.</p>
+    <p class="srcs">Held back: ${missing.map(id=>esc(byId(id).label)).join(", ")} — never reached the prompt, so the model cannot cite it. The honest failure is the feature: an ungrounded model would have guessed a number here.</p></div>`;
+  } else {
+    const parts = need.length? need.map(id=>({f:byId(id).frag,s:slotOf(id),l:byId(id).label}))
+                            : context.map(c=>({f:c.text,s:c.slot,l:c.label}));
+    html+=`<span class="verdict ${conflict.length?"bad":"ok"}">grounded · ${conflict.length?"confidence low":"confidence high"}</span>
+    <div class="answer"><p>${parts.map(p=>cap(p.f)+` <cite>[${p.s}]</cite>`).join(". ")}.</p>
+    ${conflict.length?`<p class="srcs" style="color:var(--amber)">Warning: the context also contains ${conflict.map(c=>esc(c.label)).join(", ")} — a superseded wording with different limits. Turn the policy filter back on and the contradiction disappears.</p>`:""}
+    <ul class="srcs">${parts.map(p=>`<li>[${p.s}] ${esc(p.l)}</li>`).join("")}</ul></div>`;
+  }
+  el.innerHTML=html;
+}
+
+/* ============ WIRING ============ */
+const esc=s=>String(s).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]));
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+
+const presetsEl=document.getElementById("presets");
+presetsEl.innerHTML=PRESETS.map((p,i)=>`<button class="chip" data-i="${i}" aria-pressed="${i===0}">${esc(p.q.length>44?p.q.slice(0,42)+"…":p.q)}</button>`).join("");
+presetsEl.addEventListener("click",e=>{
+  const b=e.target.closest(".chip"); if(!b)return;
+  const i=+b.dataset.i; S.preset=i; S.query=PRESETS[i].q; S.need=PRESETS[i].need; S.ctx=PRESETS[i].ctx;
+  document.getElementById("q").value=S.query;
+  syncPresets(); syncCtx(); run();
+});
+function syncPresets(){[...presetsEl.children].forEach(b=>b.setAttribute("aria-pressed", +b.dataset.i===S.preset));}
+function syncCtx(){
+  document.getElementById("ctxNote").textContent = S.need.length
+    ? "Context attached from the claim: "+S.ctx+" — these become retrieval filters, not prose."
+    : "Free-typed question — no known-good answer to check against, so the model just reports what it retrieved.";
+}
+const qEl=document.getElementById("q");
+qEl.value=S.query;
+qEl.addEventListener("input",()=>{
+  S.query=qEl.value;
+  const m=PRESETS.findIndex(p=>p.q===qEl.value.trim());
+  S.preset=m; S.need=m>=0?PRESETS[m].need:[]; S.ctx=m>=0?PRESETS[m].ctx:"claim C-44219 · policy H-2019 · jurisdiction UK";
+  syncPresets(); syncCtx(); run();
+});
+
+document.getElementById("chunkSeg").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b)return;
+  S.chunking=b.dataset.v;
+  [...e.currentTarget.children].forEach(x=>x.setAttribute("aria-pressed", x.dataset.v===S.chunking));
+  syncChunkNote(); run();
+});
+function syncChunkNote(){
+  document.getElementById("chunkNote").textContent = S.chunking==="section"
+    ? "One clause per chunk, boundaries respected. Every clause arrives whole."
+    : "Blind 180-character cuts. Clauses get sliced mid-sentence, so a chunk can be retrieved without carrying the fact you needed.";
+}
+document.getElementById("fPolicy").addEventListener("change",e=>{S.fPolicy=e.target.checked;run();});
+document.getElementById("fDate").addEventListener("change",e=>{S.fDate=e.target.checked;run();});
+document.getElementById("rerank").addEventListener("change",e=>{S.rerank=e.target.checked;run();});
+document.getElementById("k").addEventListener("input",e=>{S.k=+e.target.value;document.getElementById("kVal").textContent=S.k;run();});
+
+syncPresets(); syncCtx(); syncChunkNote(); run();
+</script>
+</body>
+</html>
