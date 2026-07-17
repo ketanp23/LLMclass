@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG Playground — Store Manager's Finance Co-Pilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EDF0F3; --panel:#FFFFFF; --ink:#101820; --muted:#5C6B7A; --rule:#CDD6DE;
+  --indigo:#2B2FD6; --indigo-soft:#E4E5FB;
+  --amber:#B46A12; --amber-soft:#F6E9D6;
+  --teal:#0E7C6B; --teal-soft:#DCEFEB;
+  --red:#B01E28; --red-soft:#F8E3E4;
+  --radius:3px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;
+  font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;padding:32px 24px 72px}
+
+header{border-bottom:1.5px solid var(--ink);padding-bottom:20px;margin-bottom:20px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+h1{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:clamp(30px,4.4vw,46px);line-height:1.03;letter-spacing:-.02em;margin:0 0 10px}
+h1 em{font-style:normal;color:var(--indigo)}
+.lede{max-width:68ch;color:var(--muted);margin:0}
+
+/* guide */
+.guide{background:var(--panel);border:1px solid var(--rule);border-radius:var(--radius);margin-bottom:20px;overflow:hidden}
+.guide > summary{list-style:none;cursor:pointer;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;font-family:"Space Grotesk",sans-serif;font-weight:500;font-size:15px}
+.guide > summary::-webkit-details-marker{display:none}
+.guide > summary:hover{background:#F7F9FB}
+.guide > summary .hint{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--indigo);white-space:nowrap}
+.guide[open] > summary{border-bottom:1px solid var(--rule)}
+.guide[open] > summary .hint::after{content:" — hide"}
+.guide:not([open]) > summary .hint::after{content:" — read first"}
+.guide-body{padding:18px 16px 20px}
+.guide-intro{max-width:76ch;margin:0 0 20px;color:var(--muted);font-size:14px}
+.guide-intro b{color:var(--ink);font-weight:600}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--rule)}
+@media (max-width:900px){.steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:600px){.steps{grid-template-columns:1fr}}
+.step{padding:16px 18px 18px;border-bottom:1px solid var(--rule);border-right:1px solid var(--rule)}
+.steps .step:nth-child(3n){border-right:0}
+@media (max-width:900px){.steps .step:nth-child(3n){border-right:1px solid var(--rule)}.steps .step:nth-child(2n){border-right:0}}
+@media (max-width:600px){.step{border-right:0!important}}
+.step-num{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;color:var(--indigo);display:block;margin-bottom:6px}
+.step h3{font-family:"Space Grotesk",sans-serif;font-size:15px;font-weight:500;margin:0 0 6px;letter-spacing:-.01em}
+.step p{margin:0 0 8px;font-size:13px;color:var(--muted);line-height:1.5}
+.step .watch{font-size:12px;color:var(--ink);border-left:2px solid var(--teal);padding-left:8px;margin:0}
+.step .watch b{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--teal);text-transform:uppercase;letter-spacing:.08em;font-weight:500;display:block}
+code{font-family:"IBM Plex Mono",monospace;font-size:11.5px;background:#F0F3F6;padding:1px 4px;border-radius:2px}
+.try{margin-top:20px;border:1px solid var(--amber);border-radius:var(--radius);background:var(--amber-soft)}
+.try h3{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin:0;padding:10px 14px;border-bottom:1px solid rgba(180,106,18,.3)}
+.try ol{margin:0;padding:12px 14px 14px 32px;font-size:13.5px}
+.try li{margin-bottom:9px}
+.try li:last-child{margin-bottom:0}
+.try li span{color:#7A5410}
+.honest{margin-top:16px;font-size:12.5px;color:var(--muted);border-top:1px dotted var(--rule);padding-top:12px;max-width:80ch}
+
+/* layout */
+.grid{display:grid;grid-template-columns:300px minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:940px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--rule);border-radius:var(--radius);padding:16px 16px 18px}
+.panel + .panel{margin-top:16px}
+.panel h2{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;gap:8px}
+.panel h2 span{color:var(--ink);text-align:right}
+
+label.field{display:block;font-size:12px;font-weight:600;margin:0 0 6px}
+textarea{width:100%;min-height:70px;resize:vertical;padding:9px 10px;border:1px solid var(--rule);border-radius:var(--radius);background:#FBFCFD;font-family:"IBM Plex Sans",sans-serif;font-size:13.5px;color:var(--ink)}
+textarea:focus,button:focus-visible{outline:2px solid var(--indigo);outline-offset:1px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
+.chip{font-size:12px;padding:5px 9px;border:1px solid var(--rule);background:#F6F8FA;border-radius:99px;cursor:pointer;font-family:inherit;color:var(--ink);text-align:left}
+.chip:hover{border-color:var(--indigo);color:var(--indigo)}
+.chip[aria-pressed="true"]{background:var(--indigo);border-color:var(--indigo);color:#fff}
+.chip.danger[aria-pressed="true"]{background:var(--red);border-color:var(--red)}
+.ctrl{padding:11px 0;border-bottom:1px dotted var(--rule)}
+.ctrl:last-child{border-bottom:0;padding-bottom:0}
+.ctrl-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.ctrl-top strong{font-size:13px;font-weight:600}
+.ctrl-note{font-size:11.5px;color:var(--muted);margin:4px 0 0;line-height:1.35}
+.switch{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.switch input{appearance:none;width:34px;height:19px;border-radius:99px;background:#D6DDE4;position:relative;cursor:pointer;margin:0;flex:0 0 auto;transition:background .16s}
+.switch input::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:99px;background:#fff;transition:transform .16s}
+.switch input:checked{background:var(--indigo)}
+.switch input:checked::after{transform:translateX(15px)}
+input[type=range]{width:100%;accent-color:var(--indigo);margin-top:8px}
+.val{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--indigo)}
+.who{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+.who .av{width:30px;height:30px;border-radius:99px;background:var(--ink);color:#fff;display:grid;place-items:center;font-family:"Space Grotesk";font-size:13px;flex:0 0 auto}
+.who div p{margin:0;font-size:12.5px;font-weight:600}
+.who div small{color:var(--muted);font-family:"IBM Plex Mono",monospace;font-size:10.5px}
+
+/* signature: the resolve ledger */
+.resolve{display:grid;grid-template-columns:1fr 300px;gap:18px}
+@media (max-width:820px){.resolve{grid-template-columns:1fr}}
+.cand{padding:6px 0;border-bottom:1px solid #EEF1F4;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+.cand:last-child{border-bottom:0}
+.cand code{background:none;padding:0;font-size:12px;color:var(--muted)}
+.cand .tbl{color:var(--muted)}
+.cand .cn{color:var(--ink);font-weight:500}
+.cand .mini{height:3px;background:#EDF0F3;border-radius:2px;margin-top:4px;overflow:hidden}
+.cand .mini span{display:block;height:100%;background:#C3CCD5;transition:width .35s}
+.cand.pick .cn{color:var(--amber)}
+.cand.pick .mini span{background:var(--amber)}
+.cand.canon .cn{color:var(--teal)}
+.cand.canon .mini span{background:var(--teal)}
+.numbox{border:1px solid var(--rule);border-radius:var(--radius);padding:14px;background:#F7F9FB}
+.numbox .lab{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 2px}
+.numbox .big{font-family:"Space Grotesk",sans-serif;font-size:34px;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:0}
+.numbox .big.warnc{color:var(--amber)}
+.numbox .big.okc{color:var(--teal)}
+.numbox hr{border:0;border-top:1px dotted var(--rule);margin:12px 0}
+.numbox p.sub{margin:2px 0 0;font-size:12px;color:var(--muted)}
+.delta{font-family:"IBM Plex Mono",monospace;font-size:11px;padding:2px 6px;border-radius:2px;display:inline-block;margin-top:8px}
+.delta.bad{background:var(--red-soft);color:var(--red)}
+.delta.ok{background:var(--teal-soft);color:var(--teal)}
+
+/* schema retrieval */
+.row{padding:7px 0;border-bottom:1px solid #EEF1F4}
+.row:last-child{border-bottom:0}
+.row-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.row-title{font-size:13px;font-weight:600;font-family:"IBM Plex Mono",monospace}
+.score{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--muted)}
+.bar{height:4px;background:#EDF0F3;border-radius:2px;margin-top:5px;overflow:hidden}
+.bar span{display:block;height:100%;background:var(--teal);transition:width .4s}
+.row.miss{opacity:.5}
+.row.miss .bar span{background:#C3CCD5}
+.snippet{font-size:12px;color:var(--muted);margin:3px 0 0}
+.tag{font-family:"IBM Plex Mono",monospace;font-size:10px;padding:1px 5px;border-radius:2px;background:#F0F3F6;color:var(--muted);margin-right:4px;white-space:nowrap}
+.tag.keep{background:var(--teal-soft);color:var(--teal)}
+.tag.warn{background:var(--amber-soft);color:var(--amber)}
+.tag.rank{background:var(--indigo-soft);color:var(--indigo)}
+
+/* sql */
+.stage{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+@media (max-width:840px){.stage{grid-template-columns:1fr}}
+pre.sql{font-family:"IBM Plex Mono",monospace;font-size:11.5px;line-height:1.65;margin:0 0 12px;white-space:pre-wrap;word-break:break-word;background:#F7F9FB;border:1px solid var(--rule);border-radius:var(--radius);padding:11px;overflow:auto}
+pre.sql .kw{color:var(--indigo);font-weight:500}
+pre.sql .sem{background:var(--teal-soft);color:var(--teal);border-radius:2px;padding:0 2px}
+pre.sql .scope{background:var(--indigo-soft);color:var(--indigo);border-radius:2px;padding:0 2px}
+pre.sql .guess{background:var(--amber-soft);color:var(--amber);border-radius:2px;padding:0 2px}
+pre.sql .danger{background:var(--red-soft);color:var(--red);border-radius:2px;padding:0 2px}
+.sqlhead{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 5px}
+.gate{border-radius:var(--radius);padding:9px 11px;font-size:12.5px;margin:0 0 14px;border:1px solid}
+.gate.pass{background:var(--teal-soft);border-color:var(--teal);color:var(--teal)}
+.gate.fail{background:var(--red-soft);border-color:var(--red);color:var(--red)}
+.gate.off{background:var(--amber-soft);border-color:var(--amber);color:var(--amber)}
+.gate b{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:2px}
+table.rows{width:100%;border-collapse:collapse;font-family:"IBM Plex Mono",monospace;font-size:11.5px}
+table.rows th{text-align:left;color:var(--muted);font-weight:500;border-bottom:1px solid var(--rule);padding:4px 6px 4px 0;letter-spacing:.04em}
+table.rows td{padding:4px 6px 4px 0;border-bottom:1px solid #F2F5F7}
+table.rows td.num{text-align:right;padding-right:10px}
+.exec{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);margin:8px 0 0}
+
+.answer{border-left:3px solid var(--teal);padding:2px 0 2px 12px}
+.answer h4{font-family:"IBM Plex Sans";font-size:13px;margin:0 0 6px}
+.answer p{margin:0 0 10px;font-size:14.5px}
+.answer ul{margin:0 0 10px;padding-left:18px;font-size:14px}
+.answer cite{font-style:normal;color:var(--teal);font-family:"IBM Plex Mono",monospace;font-size:11px}
+.answer.fail{border-left-color:var(--amber)}
+.answer.breach{border-left-color:var(--red)}
+.verdict{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:3px 7px;border-radius:2px;display:inline-block;margin-bottom:10px}
+.verdict.ok{background:var(--teal-soft);color:var(--teal)}
+.verdict.bad{background:var(--amber-soft);color:var(--amber)}
+.verdict.breach{background:var(--red-soft);color:var(--red)}
+.srcs{font-size:12px;color:var(--muted);margin:0;padding-left:16px}
+.srcs li{margin-bottom:3px}
+footer{margin-top:28px;padding-top:14px;border-top:1px solid var(--rule);font-size:12px;color:var(--muted)}
+footer a{color:var(--indigo)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">RAG Playground · Use case 02 · Structured data</p>
+  <h1>Same question. <em>Two columns. Two truths.</em></h1>
+  <p class="lede">No documents here — just a warehouse with 248 tables and fourteen columns that could all plausibly mean "revenue." The model writes SQL, a validator inspects it, and it runs live against the data. Pick the wrong column and you still get a number: confident, precise, formatted to the rupee, and wrong.</p>
+</header>
+
+<details class="guide" open>
+  <summary>
+    <span>How this works — read before you touch the knobs</span>
+    <span class="hint">6 steps</span>
+  </summary>
+  <div class="guide-body">
+    <p class="guide-intro">You are <b>Priya</b>, store manager, Mumbai 14. Your co-pilot sits on top of the retailer's warehouse — <b>sales, targets, inventory, returns, footfall</b>, refreshed hourly, governed by the data team. Nothing gets copied into the model. The pipeline learns the warehouse's <b>shape</b>, then writes a query against it. Six steps, and you control four.</p>
+
+    <div class="steps">
+
+      <div class="step">
+        <span class="step-num">STEP 01 · OFFLINE</span>
+        <h3>Read the warehouse as it is</h3>
+        <p>A schema reader walks the DDL: table names, column names, sample values, how tables join. It copies no rows. Queries will run live against the real thing, so answers are never stale.</p>
+        <p class="watch"><b>The lesson</b>248 tables, 4,800 columns, and 14 of them look like "revenue." That ambiguity is the entire problem in structured RAG.</p>
+      </div>
+
+      <div class="step">
+        <span class="step-num">STEP 02 · OFFLINE · YOURS</span>
+        <h3>Build the semantic layer</h3>
+        <p>Finance and data sit down once and agree: "revenue" means <em>one</em> column with <em>one</em> set of filters. "Slow-moving" means specific numbers. About 120 terms cover 95% of questions. The <b>Semantic layer</b> switch decides whether the model gets them.</p>
+        <p class="watch"><b>Watch this</b>Off, the model resolves "revenue" by name similarity — the same way you would, skimming a column list. It picks something reasonable. It picks wrong.</p>
+      </div>
+
+      <div class="step">
+        <span class="step-num">STEP 03 · OFFLINE · YOURS</span>
+        <h3>Make the schema retrievable</h3>
+        <p>Table descriptions, the 120 definitions, the join graph, and ~800 vetted past question→SQL pairs are embedded into a vector store. You cannot paste 4,800 columns into a prompt — so the system retrieves only the handful the question needs.</p>
+        <p class="watch"><b>Watch this</b>Drop <b>Schema chunks retrieved</b> too low and a table the question depends on never arrives. The model can't query what it can't see, and says so.</p>
+      </div>
+
+      <div class="step">
+        <span class="step-num">STEP 04 · LIVE · YOURS</span>
+        <h3>Priya asks, on her phone</h3>
+        <p>Plain English, the way she'd ask a colleague. Her identity comes attached: <code>store_14</code>, region west. A complex question ("why did I underperform?") is <b>decomposed</b> into sub-questions, because three small queries debug better than one giant one.</p>
+        <p class="watch"><b>Watch this</b>Identity is not a suggestion to the model — it becomes a <code>WHERE store_id = 14</code> predicate that the validator refuses to run without.</p>
+      </div>
+
+      <div class="step">
+        <span class="step-num">STEP 05 · LIVE · YOURS</span>
+        <h3>Generate SQL, then gate it</h3>
+        <p>The model writes SQL using only the retrieved schema. Then the <b>validator</b> — plain code, no model — checks it: read-only, scope predicate present, tables on the allow-list, cost within cap. Only then does it reach the warehouse.</p>
+        <p class="watch"><b>Watch this</b>Clause colours show where each condition came from: <span style="color:var(--teal)">definition</span>, <span style="color:var(--indigo)">identity</span>, <span style="color:var(--amber)">the model's own guess</span>.</p>
+      </div>
+
+      <div class="step">
+        <span class="step-num">STEP 06 · LIVE</span>
+        <h3>Rows become a narrative</h3>
+        <p>The result rows go back to the model with one instruction: explain these numbers to a store manager, cite the tables and definitions, show the SQL. It may rank, summarise and recommend — it may not invent a figure.</p>
+        <p class="watch"><b>The lesson</b>Every number in the answer maps to a cell in the result table. If finance disputes it, the SQL is one tap away — and identical for every store manager who asks.</p>
+      </div>
+
+    </div>
+
+    <div class="try">
+      <h3>Four experiments — run them in order</h3>
+      <ol>
+        <li><b>Kill the semantic layer.</b> Ask the revenue question, then switch <b>Semantic layer</b> off. <span>The model resolves "revenue" to a column that is genuinely named <code>revenue_inr</code> — and reports that Priya beat her target. The canonical definition says she missed it by 12.5%. Same question, opposite conclusion, no error message. This is the single most important step in structured RAG.</span></li>
+        <li><b>Starve the retriever.</b> Semantic layer back on. Drag <b>Schema chunks retrieved</b> down to 3. <span><code>sales_fact</code> — the table holding actual sales — falls out of the prompt, so the question becomes unanswerable. Compare this failure with the one above: this pipeline knows it failed. That one didn't.</span></li>
+        <li><b>Remove the scope filter.</b> Ask the Bangalore question with <b>Identity scope</b> on, then off. <span>With the validator on, the query is rejected for having no scope predicate. Turn the validator off too and Priya reads another region's numbers — a governance breach in one click.</span></li>
+        <li><b>Try to break the warehouse.</b> Pick the last preset. <span>The model happily writes a DELETE. The validator — not the model's good manners — is what stops it.</span></li>
+      </ol>
+    </div>
+
+    <p class="honest">What's real here: the warehouse is ~2,400 generated rows in memory, and every figure on screen is computed from them at query time. The SQL you see is printed from the same query plan that executes, so the two cannot drift apart. Schema retrieval uses TF-IDF cosine similarity over the table and definition descriptions. The narration is a template that can only read cells from the result table — exactly the constraint a well-prompted LLM operates under.</p>
+  </div>
+</details>
+
+<div class="grid">
+  <!-- controls -->
+  <div>
+    <div class="panel">
+      <h2>Step 04 <span>Priya asks</span></h2>
+      <div class="who">
+        <div class="av">P</div>
+        <div><p>Priya M.</p><small>store_14 · Mumbai · region west</small></div>
+      </div>
+      <div class="chips" id="presets"></div>
+      <label class="field" for="q">Question</label>
+      <textarea id="q" spellcheck="false" readonly></textarea>
+      <p class="ctrl-note">Presets only — this playground ships a small query planner, not a general text-to-SQL model. The lessons live in the knobs below.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Steps 02–05 <span>Pipeline knobs</span></h2>
+
+      <div class="ctrl">
+        <div class="ctrl-top"><label class="switch"><input type="checkbox" id="sem" checked><strong>Semantic layer</strong></label></div>
+        <p class="ctrl-note">Canonical definitions for revenue, target, slow-moving. Off, the model guesses columns by name.</p>
+      </div>
+
+      <div class="ctrl">
+        <div class="ctrl-top"><strong>Schema chunks retrieved</strong><span class="val" id="kVal">10</span></div>
+        <input type="range" id="k" min="2" max="16" value="10">
+        <p class="ctrl-note">How much of the 248-table warehouse reaches the prompt.</p>
+      </div>
+
+      <div class="ctrl">
+        <div class="ctrl-top"><label class="switch"><input type="checkbox" id="decomp" checked><strong>Decompose question</strong></label></div>
+        <p class="ctrl-note">Splits a "why" question into sub-queries instead of one unreadable join.</p>
+      </div>
+
+      <div class="ctrl">
+        <div class="ctrl-top"><label class="switch"><input type="checkbox" id="scope" checked><strong>Identity scope</strong></label></div>
+        <p class="ctrl-note">Injects <code>store_id = 14</code>. Priya's permission, expressed as a predicate.</p>
+      </div>
+
+      <div class="ctrl">
+        <div class="ctrl-top"><label class="switch"><input type="checkbox" id="valid" checked><strong>SQL validator</strong></label></div>
+        <p class="ctrl-note">Read-only · scope present · allow-listed tables · cost cap. Code, not vibes.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- stages -->
+  <div>
+    <div class="panel">
+      <h2>Step 02 <span id="resolveHead">Resolving "revenue" — 14 candidate columns</span></h2>
+      <div class="resolve">
+        <div id="cands"></div>
+        <div>
+          <div class="numbox" id="numbox"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Step 03 <span>Schema retrieval — what reached the prompt</span></h2>
+      <div id="schema"></div>
+    </div>
+
+    <div class="stage">
+      <div class="panel" style="margin:0">
+        <h2>Step 05 <span>Generated SQL · validator</span></h2>
+        <div id="sql"></div>
+      </div>
+      <div class="panel" style="margin:0">
+        <h2>Step 06 <span>Rows · narrated answer</span></h2>
+        <div id="out"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Part 2 of 2. The unstructured pipeline — clauses, chunking, embeddings, re-ranking — lives in <a href="./rag_playground.html">rag_playground.html</a>. Companion to the <a href="https://ketanp23.github.io/genaiclass/rag_visual_explainer.html">RAG Pipeline visual explainer</a>. Whether the answer lives in a clause or a row, the six steps are the same: collect, prepare, embed, retrieve, generate, cite.
+</footer>
+</div>
+
+<script>
+/* ============================ 1. THE WAREHOUSE ============================ */
+let seed=42; const rnd=()=>{seed=(seed*1664525+1013904223)%4294967296;return seed/4294967296;};
+
+const STORES=[
+ {store_id:14,city:"Mumbai",region:"west",format:"high street",is_active:true,channel:"own"},
+ {store_id:15,city:"Mumbai",region:"west",format:"mall",is_active:true,channel:"own"},
+ {store_id:21,city:"Bangalore",region:"south",format:"mall",is_active:true,channel:"own"},
+ {store_id:22,city:"Bangalore",region:"south",format:"high street",is_active:true,channel:"own"},
+ {store_id:31,city:"Delhi",region:"north",format:"mall",is_active:true,channel:"own"},
+ {store_id:40,city:"Pune",region:"west",format:"franchise",is_active:false,channel:"franchise"}
+];
+const PRODUCTS=[
+ {sku_id:"A-218",name:"Linen shirt, ecru",category:"tops",w:.021},
+ {sku_id:"B-103",name:"Wide chino, olive",category:"bottoms",w:.019},
+ {sku_id:"C-440",name:"Knit polo, navy",category:"tops",w:.017},
+ {sku_id:"D-012",name:"Denim jacket",category:"outer",w:.181},
+ {sku_id:"E-556",name:"Everyday tee, 3-pack",category:"tops",w:.203},
+ {sku_id:"F-901",name:"Tapered jean, indigo",category:"bottoms",w:.194},
+ {sku_id:"G-233",name:"Oxford shirt, white",category:"tops",w:.190},
+ {sku_id:"H-119",name:"Merino crew",category:"knit",w:.175}
+];
+const DAYS=["2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12"];
+const STORE_W={14:1.0,15:1.12,21:1.31,22:0.87,31:1.44,40:0.42};
+
+let sales_fact=[];
+STORES.forEach(s=>PRODUCTS.forEach(p=>DAYS.forEach((d,di)=>{
+  const dayW=[.9,.85,.95,1.0,1.25,1.45,1.3][di];
+  const base=2_600_000*STORE_W[s.store_id]*p.w*dayW/7*(0.85+0.3*rnd());
+  sales_fact.push({store_id:s.store_id,sku_id:p.sku_id,tx_date:d,qty:Math.max(1,Math.round(base/2200)),
+    gross_amt:Math.round(base),net_rev_recog:Math.round(base*0.86),net_amt_incl_tax:Math.round(base*0.97),
+    list_amt:Math.round(base*1.12),is_voided:false,line_type:"sale",channel:s.channel});
+  if(rnd()<0.14){const b2=base*0.22;sales_fact.push({store_id:s.store_id,sku_id:p.sku_id,tx_date:d,qty:1,
+    gross_amt:Math.round(b2),net_rev_recog:Math.round(b2*0.86),net_amt_incl_tax:Math.round(b2*0.97),
+    list_amt:Math.round(b2*1.12),is_voided:true,line_type:"sale",channel:s.channel});}
+  if(rnd()<0.10){const b3=1000+rnd()*4000;sales_fact.push({store_id:s.store_id,sku_id:p.sku_id,tx_date:d,qty:1,
+    gross_amt:Math.round(b3),net_rev_recog:0,net_amt_incl_tax:Math.round(b3),list_amt:Math.round(b3),
+    is_voided:false,line_type:"giftcard",channel:s.channel});}
+})));
+// scale so store 14's canonical week lands on a clean ~2.10M
+const canon14=sales_fact.filter(r=>r.store_id===14&&!r.is_voided&&r.line_type==="sale").reduce((a,r)=>a+r.net_rev_recog,0);
+const SCALE=2_100_000/canon14;
+sales_fact.forEach(r=>{["gross_amt","net_rev_recog","net_amt_incl_tax","list_amt"].forEach(k=>r[k]=Math.round(r[k]*SCALE));});
+
+const targets_dim=STORES.map(s=>({store_id:s.store_id,week:"2026-W28",target_amount:Math.round(2_400_000*STORE_W[s.store_id]/1000)*1000}));
+const DOH={ "A-218":56,"B-103":71,"C-440":48,"D-012":33,"E-556":12,"F-901":19,"G-233":9,"H-119":26 };
+const inventory_fact=[];
+STORES.forEach(s=>PRODUCTS.forEach(p=>inventory_fact.push({
+  store_id:s.store_id,sku_id:p.sku_id,
+  on_hand_qty:Math.round(30+DOH[p.sku_id]*(1.6+rnd())),
+  days_on_hand:DOH[p.sku_id]+(s.store_id===14?0:Math.round(rnd()*14-7))
+})));
+const returns_fact=[];
+STORES.forEach(s=>PRODUCTS.forEach(p=>{ if(rnd()<.6) returns_fact.push({store_id:s.store_id,sku_id:p.sku_id,week:"2026-W28",
+  return_qty:Math.round(1+rnd()*9),refund_amt:Math.round(2000+rnd()*18000),return_reason:["fit","fabric","changed mind","damaged"][Math.floor(rnd()*4)]});}));
+// the trap table: an old finance rollup, gross basis, includes gift cards, voids and franchise
+const finance_daily_rollup=[];
+STORES.forEach(s=>DAYS.forEach(d=>{
+  const rev=sales_fact.filter(r=>r.store_id===s.store_id&&r.tx_date===d).reduce((a,r)=>a+r.gross_amt,0);
+  finance_daily_rollup.push({store_id:s.store_id,day:d,revenue_inr:rev});
+}));
+
+const TABLES={sales_fact,stores_dim:STORES,products_dim:PRODUCTS,targets_dim,inventory_fact,returns_fact,finance_daily_rollup};
+
+/* ============================ 2. SCHEMA + SEMANTICS ============================ */
+const SCHEMA_CHUNKS=[
+ {id:"t_sales",kind:"table",name:"sales_fact",text:"sales_fact revenue sales transaction line items. revenue sales amount per store sku day. columns store_id sku_id tx_date qty gross_amt net_rev_recog net_amt_incl_tax list_amt is_voided line_type channel. sample values tx_date 2026-07-06, line_type sale giftcard, channel own franchise. refreshed hourly."},
+ {id:"t_targets",kind:"table",name:"targets_dim",text:"targets_dim weekly plan target amount per store. columns store_id week target_amount. did I hit target plan budget."},
+ {id:"t_inv",kind:"table",name:"inventory_fact",text:"inventory_fact stock on hand per store sku. columns store_id sku_id on_hand_qty days_on_hand. sample values days_on_hand 12 48 71. slow moving ageing stock discount candidates."},
+ {id:"t_prod",kind:"table",name:"products_dim",text:"products_dim product master sku name category. columns sku_id name category. sample values A-218 linen shirt, B-103 wide chino, category tops bottoms outer knit."},
+ {id:"t_stores",kind:"table",name:"stores_dim",text:"stores_dim store master. columns store_id city region format is_active channel. sample values city Mumbai Bangalore Delhi Pune, region west south north, format mall high street franchise. compare stores by city region."},
+ {id:"t_returns",kind:"table",name:"returns_fact",text:"returns_fact customer returns refund per store sku week. columns store_id sku_id return_qty refund_amt return_reason. sample values reason fit fabric damaged."},
+ {id:"t_roll",kind:"table",name:"finance_daily_rollup",text:"finance_daily_rollup revenue rollup. daily revenue per store. revenue_inr total revenue. columns store_id day revenue_inr. deprecated gross basis includes gift cards voids franchise."},
+ {id:"d_rev",kind:"def",name:"definition: revenue",text:"revenue canonical definition sum of net_rev_recog excluding voided lines gift card top ups franchise channel inactive stores. one number across the org."},
+ {id:"d_slow",kind:"def",name:"definition: slow_moving",text:"slow moving sku canonical definition days_on_hand greater than 45 and on_hand_qty greater than 20. ageing stock discount candidate."},
+ {id:"d_target",kind:"def",name:"definition: daily_target",text:"target weekly plan number from targets_dim target_amount matched on store and iso week."},
+ {id:"d_active",kind:"def",name:"definition: active_store",text:"active store is_active true and channel own and trading in the period."},
+ {id:"x_q1",kind:"example",name:"past query: revenue vs target",text:"example question weekly revenue versus target sql sum net_rev_recog join targets_dim on store week."},
+ {id:"x_q2",kind:"example",name:"past query: worst SKUs",text:"example question bottom underperforming skus by revenue group by sku order ascending limit 3."},
+ {id:"t_footfall",kind:"table",name:"footfall_hourly",text:"footfall_hourly visitors basket conversion per store hour. columns store_id hour visitors basket_conv."},
+ {id:"t_promo",kind:"table",name:"promo_dim",text:"promo_dim promotions discount percentage start end. columns promo_id discount_pct start end."},
+ {id:"t_staging",kind:"table",name:"sales_fact_staging",text:"sales_fact_staging raw landing zone duplicate sales rows unvalidated do not query."}
+];
+
+// the fourteen columns that could all mean "revenue"
+const REV_CANDIDATES=[
+ {t:"finance_daily_rollup",c:"revenue_inr",note:"legacy rollup · gross basis"},
+ {t:"store_pnl_archive",c:"revenue_ytd",note:"archived · year to date"},
+ {t:"sales_fact",c:"net_rev_recog",note:"recognised net revenue"},
+ {t:"sales_fact",c:"gross_amt",note:"before tax and discount"},
+ {t:"sales_fact",c:"net_amt_incl_tax",note:"net, tax included"},
+ {t:"sales_fact",c:"list_amt",note:"ticket price × qty"},
+ {t:"sales_fact_staging",c:"gross_amt",note:"landing zone · duplicates"},
+ {t:"budget_dim",c:"revenue_plan",note:"planned, not actual"},
+ {t:"returns_fact",c:"refund_amt",note:"negative revenue"},
+ {t:"promo_dim",c:"discount_amt",note:"revenue given away"},
+ {t:"targets_dim",c:"target_amount",note:"the goal, not the result"},
+ {t:"ecom_orders",c:"order_value",note:"online only"},
+ {t:"franchise_settle",c:"revenue_share",note:"franchise channel"},
+ {t:"loyalty_ledger",c:"points_value_inr",note:"liability, not revenue"}
+];
+// name-similarity scorer: exactly how a model with no semantic layer resolves a term
+function nameScore(term,cand){
+  const t=term.toLowerCase(), full=(cand.c).toLowerCase();
+  const parts=full.split(/[_\s]/);
+  let s=0;
+  if(parts.includes(t)) s+=1.0;                                  // exact token: "revenue"
+  parts.forEach(p=>{ if(p!==t && (p.startsWith(t.slice(0,3))||t.startsWith(p.slice(0,3)))) s+=0.42; });
+  if(full.includes(t)) s+=0.25;
+  s -= 0.03*Math.abs(full.length-t.length)/4;
+  return Math.max(0.02,s);
+}
+
+/* ============================ 3. TINY TF-IDF (schema retrieval) ============================ */
+const STOP=new Set("a an the is are was were be of to for in on at by or and with as it its that this from any where which my did i do".split(" "));
+const SYN={revenue:"revenue",rev:"revenue",sales:"revenue",turnover:"revenue",sold:"revenue",
+ target:"target",plan:"target",budget:"target",
+ sku:"sku",skus:"sku",product:"sku",item:"sku",
+ stock:"stock",inventory:"stock",ageing:"stock",aging:"stock",slow:"slow",moving:"slow",discount:"discount",markdown:"discount",
+ store:"store",shop:"store",underperform:"underperform",underperformed:"underperform",miss:"underperform",
+ week:"week",last:"week",compare:"compare",versus:"compare",vs:"compare"};
+const tok=s=>s.toLowerCase().replace(/[^a-z0-9_\s]/g," ").split(/\s+/).filter(t=>t&&!STOP.has(t)&&t.length>1)
+  .map(t=>SYN[t]||SYN[t.replace(/s$/,"")]||t.replace(/s$/,""));
+const tf=s=>{const m={};tok(s).forEach(t=>m[t]=(m[t]||0)+1);return m;};
+const nrm=v=>{let s=0;for(const t in v)s+=v[t]*v[t];s=Math.sqrt(s)||1;const o={};for(const t in v)o[t]=v[t]/s;return o;};
+const cos=(a,b)=>{let s=0;for(const t in a)if(b[t])s+=a[t]*b[t];return s;};
+const DF={}; SCHEMA_CHUNKS.forEach(c=>{c._tf=tf(c.text+" "+c.name);Object.keys(c._tf).forEach(t=>DF[t]=(DF[t]||0)+1);});
+const N=SCHEMA_CHUNKS.length;
+const wgt=m=>{const v={};for(const t in m){v[t]=(1+Math.log(m[t]))*(Math.log((N+1)/((DF[t]||0)+1))+1);}return v;};
+SCHEMA_CHUNKS.forEach(c=>c.vec=nrm(wgt(c._tf)));
+
+/* ============================ 4. QUERY ENGINE (plan = AST = printed SQL) ============================ */
+function execute(plan){
+  const t0=performance.now();
+  let rows=(TABLES[plan.from]||[]).map(r=>({...r}));
+  (plan.joins||[]).forEach(j=>{
+    const idx={}; TABLES[j.table].forEach(r=>idx[j.on.map(k=>r[k]).join("|")]=r);
+    rows=rows.map(r=>{const m=idx[j.on.map(k=>r[k]).join("|")];return m?{...m,...r,...pick(m,j.take||[])}:r;});
+  });
+  (plan.where||[]).forEach(w=>{
+    rows=rows.filter(r=>{
+      const v=r[w.col.split(".").pop()];
+      switch(w.op){
+        case "=":return v===w.val; case "!=":return v!==w.val;
+        case ">":return v>w.val; case "<":return v<w.val;
+        case "IN":return w.val.includes(v);
+        case "BETWEEN":return v>=w.val[0]&&v<=w.val[1];
+      }
+    });
+  });
+  let out;
+  if(plan.group||plan.select.some(s=>s.fn)){
+    const groups={};
+    rows.forEach(r=>{const k=plan.group?plan.group.map(g=>r[g]).join("|"):"_";(groups[k]=groups[k]||[]).push(r);});
+    out=Object.values(groups).map(g=>{
+      const o={};
+      plan.select.forEach(s=>{
+        if(!s.fn){o[s.as||s.col]=g[0][s.col];return;}
+        const vals=g.map(r=>r[s.col.split(".").pop()]);
+        o[s.as]= s.fn==="SUM"?vals.reduce((a,b)=>a+b,0)
+               : s.fn==="AVG"?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length)
+               : vals.length;
+      });
+      return o;
+    });
+  } else out=rows.map(r=>{const o={};plan.select.forEach(s=>o[s.as||s.col]=r[s.col.split(".").pop()]);return o;});
+  if(plan.order) out.sort((a,b)=>plan.order.dir==="ASC"?a[plan.order.by]-b[plan.order.by]:b[plan.order.by]-a[plan.order.by]);
+  if(plan.limit) out=out.slice(0,plan.limit);
+  return {rows:out,ms:Math.max(0.4,performance.now()-t0),scanned:(TABLES[plan.from]||[]).length};
+}
+const pick=(o,ks)=>{const r={};ks.forEach(k=>r[k]=o[k]);return r;};
+
+function renderSQL(plan){
+  const K=s=>`<span class="kw">${s}</span>`;
+  const cls=w=>w.src==="semantic"?"sem":w.src==="scope"?"scope":w.src==="guess"?"guess":"";
+  const sel=plan.select.map(s=>s.fn?`${s.fn}(${s.col})${s.as?" AS "+s.as:""}`:s.col+(s.as?" AS "+s.as:"")).join(",\n       ");
+  let s="";
+  if(plan.write){ s+=`<span class="danger">${plan.write}</span> ${K("FROM")} ${plan.from}\n`; }
+  else s+=`${K("SELECT")} ${sel}\n${K("FROM")}   ${plan.from}\n`;
+  (plan.joins||[]).forEach(j=>{s+=`${K("JOIN")}   ${j.table} ${K("ON")} ${j.on.map(k=>`${plan.from}.${k} = ${j.table}.${k}`).join(" AND ")}\n`;});
+  if(plan.where&&plan.where.length){
+    s+=`${K("WHERE")}  `+plan.where.map((w,i)=>{
+      const v=w.op==="IN"?`(${w.val.map(x=>`'${x}'`).join(", ")})`
+        :Array.isArray(w.val)?w.val.map(x=>`'${x}'`).join(" AND ")
+        :(typeof w.val==="string"?`'${w.val}'`:w.val);
+      const c=cls(w);
+      const txt=`${w.col} ${w.op} ${v}`;
+      return (i?"\n  "+K("AND")+"  ":"")+(c?`<span class="${c}">${txt}</span>`:txt);
+    }).join("")+"\n";
+  }
+  if(plan.group)s+=`${K("GROUP BY")} ${plan.group.join(", ")}\n`;
+  if(plan.order)s+=`${K("ORDER BY")} ${plan.order.by} ${plan.order.dir}\n`;
+  if(plan.limit)s+=`${K("LIMIT")}  ${plan.limit}\n`;
+  return s.trim();
+}
+
+/* ============================ 5. VALIDATOR ============================ */
+const ALLOW=["sales_fact","stores_dim","products_dim","targets_dim","inventory_fact","returns_fact","finance_daily_rollup"];
+function validate(plan){
+  const f=[];
+  if(plan.write) f.push(`write statement (${plan.write.split(" ")[0]}) — this pipeline is read-only`);
+  if(!(plan.where||[]).some(w=>w.src==="scope")) f.push("no scope predicate — a store manager query must filter store_id");
+  const used=[plan.from,...(plan.joins||[]).map(j=>j.table)];
+  used.forEach(t=>{ if(!ALLOW.includes(t)) f.push(`table ${t} is not on the allow-list`); });
+  const scan=used.reduce((a,t)=>a+((TABLES[t]||[]).length),0);
+  if(scan>50000) f.push("estimated scan exceeds cost cap");
+  return {pass:f.length===0,fails:f,scan};
+}
+
+/* ============================ 6. QUESTIONS → PLANS ============================ */
+const WEEK=["2026-07-06","2026-07-12"];
+const PRESETS=[
+ {id:"rev", q:"What was my revenue last week, and did I hit target?", needs:["t_sales","t_targets"], danger:false,
+  sub:["store 14 revenue last week","weekly target amount for store 14"]},
+ {id:"why", q:"Why did my store underperform last week, and which SKUs should I discount?", needs:["t_sales","t_targets","t_inv","t_prod"], danger:false,
+  sub:["store 14 revenue versus target last week","bottom underperforming skus by revenue with product names","slow moving stock days on hand discount candidates"]},
+ {id:"slow",q:"Which SKUs are slow-moving right now?", needs:["t_inv","t_prod"], danger:false,
+  sub:["skus with high days on hand","product names for those skus"]},
+ {id:"cmp", q:"How does my store's revenue compare to Bangalore?", needs:["t_sales","t_stores"], danger:false,
+  sub:["revenue by city Mumbai Bangalore last week","store master city region"]},
+ {id:"del", q:"Clear last week's returns for my store, they're wrong.", needs:["t_returns"], danger:true,
+  sub:["returns rows for store 14 last week"]}
+];
+
+const S={preset:0,sem:true,k:10,decomp:true,scope:true,valid:true};
+
+function scopeW(){return S.scope?[{col:"store_id",op:"=",val:14,src:"scope"}]:[];}
+let RETRIEVED=new Set();
+// with no semantic layer the model resolves the metric by column name - but only over
+// tables that retrieval actually put in front of it, and only ones it can really query.
+function pickMetric(){
+  const usable=REV_CANDIDATES.filter(c=>RETRIEVED.has(c.t)&&TABLES[c.t]);
+  const scored=usable.map(c=>({...c,s:nameScore("revenue",c)})).sort((a,b)=>b.s-a.s);
+  const best=scored[0];
+  if(!best||(best.t!=="sales_fact"&&best.t!=="finance_daily_rollup"))
+    return {t:"sales_fact",c:"gross_amt",note:"before tax and discount"};
+  return best;
+}
+function revenuePlan(){
+  if(S.sem) return {
+    label:"Revenue, canonical definition", from:"sales_fact",
+    joins:[{table:"stores_dim",on:["store_id"],take:["is_active","channel"]}],
+    select:[{fn:"SUM",col:"sales_fact.net_rev_recog",as:"revenue"}],
+    where:[...scopeW(),
+      {col:"tx_date",op:"BETWEEN",val:WEEK,src:"question"},
+      {col:"is_voided",op:"=",val:false,src:"semantic"},
+      {col:"line_type",op:"=",val:"sale",src:"semantic"},
+      {col:"stores_dim.is_active",op:"=",val:true,src:"semantic"}]
+  };
+  const pick=pickMetric();
+  if(pick.t==="finance_daily_rollup") return {
+    label:"Revenue, resolved by column name", from:"finance_daily_rollup",
+    select:[{fn:"SUM",col:"finance_daily_rollup.revenue_inr",as:"revenue"}],
+    where:[...scopeW(),{col:"day",op:"BETWEEN",val:WEEK,src:"guess"}], _pick:pick
+  };
+  return {
+    label:"Revenue, resolved by column name", from:pick.t,
+    select:[{fn:"SUM",col:pick.t+"."+pick.c,as:"revenue"}],
+    where:[...scopeW(),{col:pick.t==="sales_fact"?"tx_date":"day",op:"BETWEEN",val:WEEK,src:"guess"}], _pick:pick
+  };
+}
+function targetPlan(){return{
+  label:"Weekly target", from:"targets_dim",
+  select:[{fn:"SUM",col:"targets_dim.target_amount",as:"target"}],
+  where:[...scopeW(),{col:"week",op:"=",val:"2026-W28",src:S.sem?"semantic":"question"}]
+};}
+function worstPlan(){return{
+  label:"Bottom 3 SKUs by revenue", from:"sales_fact",
+  joins:[{table:"products_dim",on:["sku_id"],take:["name"]},{table:"inventory_fact",on:["store_id","sku_id"],take:["days_on_hand","on_hand_qty"]}],
+  select:[{col:"sku_id"},{col:"name"},{fn:"SUM",col:"sales_fact.net_rev_recog",as:"revenue"},{fn:"AVG",col:"inventory_fact.days_on_hand",as:"days_on_hand"}],
+  where:[...scopeW(),{col:"tx_date",op:"BETWEEN",val:WEEK,src:"question"},
+    ...(S.sem?[{col:"is_voided",op:"=",val:false,src:"semantic"},{col:"line_type",op:"=",val:"sale",src:"semantic"}]:[])],
+  group:["sku_id","name"], order:{by:"revenue",dir:"ASC"}, limit:3
+};}
+function slowPlan(){
+  const doh=S.sem?45:30, qty=S.sem?20:0;
+  return {
+    label:"Slow-moving stock", from:"inventory_fact",
+    joins:[{table:"products_dim",on:["sku_id"],take:["name"]}],
+    select:[{col:"sku_id"},{col:"name"},{col:"days_on_hand"},{col:"on_hand_qty"}],
+    where:[...scopeW(),{col:"days_on_hand",op:">",val:doh,src:S.sem?"semantic":"guess"},
+      ...(S.sem?[{col:"on_hand_qty",op:">",val:qty,src:"semantic"}]:[])],
+    order:{by:"days_on_hand",dir:"DESC"}, limit:5, _doh:doh
+  };
+}
+function comparePlan(){return{
+  label:"Revenue by city", from:"sales_fact",
+  joins:[{table:"stores_dim",on:["store_id"],take:["city","is_active"]}],
+  select:[{col:"city"},{fn:"SUM",col:"sales_fact.net_rev_recog",as:"revenue"}],
+  where:[...scopeW(),{col:"tx_date",op:"BETWEEN",val:WEEK,src:"question"},
+    {col:"city",op:"IN",val:["Mumbai","Bangalore"],src:"question"},
+    ...(S.sem?[{col:"is_voided",op:"=",val:false,src:"semantic"},{col:"line_type",op:"=",val:"sale",src:"semantic"}]:[])],
+  group:["city"], order:{by:"revenue",dir:"DESC"}
+};}
+function deletePlan(){return{
+  label:"Remove returns", from:"returns_fact", write:"DELETE",
+  select:[{col:"sku_id"}],
+  where:[...scopeW(),{col:"week",op:"=",val:"2026-W28",src:"question"}]
+};}
+
+function buildPlans(){
+  const p=PRESETS[S.preset].id;
+  if(p==="rev") return [revenuePlan(),targetPlan()];
+  if(p==="why") return S.decomp?[revenuePlan(),targetPlan(),worstPlan(),slowPlan()]
+                              :[{...worstPlan(),label:"Everything, one query"}];
+  if(p==="slow") return [slowPlan()];
+  if(p==="cmp") return [comparePlan()];
+  return [deletePlan()];
+}
+
+/* ============================ 7. RENDER ============================ */
+const esc=s=>String(s).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]));
+const inr=n=>"₹"+(n>=1e5?(n/1e5).toFixed(2)+"L":n.toLocaleString("en-IN"));
+const inrFull=n=>"₹"+Math.round(n).toLocaleString("en-IN");
+
+function run(){
+  const preset=PRESETS[S.preset];
+  document.getElementById("q").value=preset.q;
+
+  /* --- step 03: schema retrieval --- */
+  const qv=nrm(wgt(tf(preset.q+" "+preset.sub.join(" "))));
+  const ranked=SCHEMA_CHUNKS.map(c=>({...c,s:cos(qv,c.vec)})).sort((a,b)=>b.s-a.s);
+  const got=ranked.slice(0,S.k);
+  const gotIds=new Set(got.map(c=>c.id));
+  RETRIEVED=new Set(got.filter(c=>c.kind==="table").map(c=>c.name));
+  const missing=preset.needs.filter(n=>!gotIds.has(n));
+  document.getElementById("schema").innerHTML=ranked.slice(0,Math.max(S.k,8)).map((c,i)=>{
+    const inCtx=i<S.k;
+    const need=preset.needs.includes(c.id);
+    return `<div class="row ${inCtx?"":"miss"}">
+      <div class="row-top"><span class="row-title">${esc(c.name)}</span><span class="score">${c.s.toFixed(3)}</span></div>
+      <div class="bar"><span style="width:${Math.min(100,c.s*170).toFixed(0)}%"></span></div>
+      <p class="snippet">
+        ${inCtx?'<span class="tag keep">in prompt</span>':'<span class="tag warn">not retrieved</span>'}
+        ${need?'<span class="tag rank">question needs this</span>':""}
+        <span class="tag">${c.kind}</span>${esc(c.text.slice(0,86))}…</p></div>`;
+  }).join("");
+
+  /* --- step 02: resolve the metric --- */
+  renderResolve(preset);
+
+  /* --- steps 05 + 06 --- */
+  if(missing.length){
+    document.getElementById("sql").innerHTML=`<div class="gate off"><b>Cannot generate</b>The prompt has no schema for ${missing.map(m=>esc(SCHEMA_CHUNKS.find(c=>c.id===m).name)).join(", ")}. The model won't invent a table name.</div>`;
+    document.getElementById("out").innerHTML=`<span class="verdict bad">unanswerable · schema missing</span>
+      <div class="answer fail"><p>I can't answer that. My retrieved schema doesn't include ${missing.map(m=>"<code>"+esc(SCHEMA_CHUNKS.find(c=>c.id===m).name)+"</code>").join(" or ")}, so I have no way to compute it.</p>
+      <p class="srcs" style="padding:0">Raise <b>Schema chunks retrieved</b> until the table arrives. Note what didn't happen: no guessed table, no plausible-looking number, no silent error.</p></div>`;
+    return;
+  }
+
+  const plans=buildPlans();
+  const results=[];
+  let sqlHtml="", blocked=false, breach=false;
+
+  plans.forEach(p=>{
+    const v=validate(p);
+    sqlHtml+=`<p class="sqlhead">${esc(p.label)}</p><pre class="sql">${renderSQL(p)}</pre>`;
+    if(S.valid && !v.pass){
+      blocked=true;
+      sqlHtml+=`<div class="gate fail"><b>Validator · rejected</b>${v.fails.map(esc).join("<br>")}</div>`;
+      return;
+    }
+    if(!S.valid && !v.pass){
+      sqlHtml+=`<div class="gate off"><b>Validator · off</b>Would have been rejected: ${v.fails.map(esc).join("; ")}. Running anyway.</div>`;
+      if(p.write){ results.push({plan:p,rows:[],ms:0,deleted:(TABLES[p.from]||[]).filter(r=>!S.scope||r.store_id===14).length,destroyed:true}); return; }
+      breach=true;
+    } else {
+      sqlHtml+=`<div class="gate pass"><b>Validator · passed</b>read-only · scope enforced · ${v.scan.toLocaleString("en-IN")} rows in allow-listed tables</div>`;
+    }
+    const r=execute(p); results.push({plan:p,...r});
+  });
+  document.getElementById("sql").innerHTML=sqlHtml;
+  renderOut(preset,results,blocked,breach);
+}
+
+function renderResolve(preset){
+  const box=document.getElementById("numbox");
+  const head=document.getElementById("resolveHead");
+  const el=document.getElementById("cands");
+
+  if(preset.id==="slow"){
+    head.textContent='Resolving "slow-moving"';
+    const doh=S.sem?45:30;
+    el.innerHTML=`<div class="cand ${S.sem?"canon":"pick"}"><div><span class="cn">days_on_hand &gt; ${doh}${S.sem?" AND on_hand_qty &gt; 20":""}</span>
+      <p class="snippet">${S.sem?"Canonical definition, agreed by merchandising and finance. Used by every store, every report.":"The model's own reasonable-sounding threshold. Nobody agreed to it. The next person to ask gets a different number."}</p></div></div>`;
+    const rows=execute(slowPlan()).rows;
+    box.innerHTML=`<p class="lab">SKUs flagged</p><p class="big ${S.sem?"okc":"warnc"}">${rows.length}</p>
+      <p class="sub">${S.sem?"Same 3 SKUs every store manager sees.":"A looser threshold sweeps in stock that isn't actually a problem."}</p>`;
+    return;
+  }
+  if(preset.id==="del"||preset.id==="cmp"){
+    head.textContent=preset.id==="del"?"No metric to resolve — this is a write":"Resolving “revenue” — 14 candidate columns";
+  } else head.textContent='Resolving "revenue" — 14 candidate columns';
+
+  if(preset.id==="del"){
+    head.textContent="Nothing to resolve — this question is a write";
+    el.innerHTML=`<p class="snippet">No metric, no definition, no column ambiguity. The model read "clear last week's returns" as an instruction and reached for the statement that does exactly that. Resolution isn't the risk here — execution is.</p>`;
+    const at=returns_fact.filter(r=>!S.scope||r.store_id===14).length;
+    box.innerHTML=`<p class="lab">Rows in the blast radius</p><p class="big warnc">${at}</p>
+      <p class="sub">Rows of <code>returns_fact</code> the generated statement would remove${S.scope?" from store 14":" across every store"}. Only the validator stands between the sentence and the delete.</p>`;
+    return;
+  }
+
+  const pick=S.sem?{t:"sales_fact",c:"net_rev_recog"}:pickMetric();
+  const scored=REV_CANDIDATES.map(c=>({...c,s:nameScore("revenue",c),
+    seen:RETRIEVED.has(c.t)&&!!TABLES[c.t]})).sort((a,b)=>b.s-a.s);
+  el.innerHTML=scored.map(c=>{
+    const chosen=c.c===pick.c&&c.t===pick.t;
+    return `<div class="cand ${chosen?(S.sem?"canon":"pick"):""}" style="${c.seen?"":"opacity:.45"}">
+      <div><code class="tbl">${esc(c.t)}.</code><span class="cn">${esc(c.c)}</span>
+        <div class="mini"><span style="width:${Math.min(100,c.s*72).toFixed(0)}%"></span></div></div>
+      <span class="score">${chosen?(S.sem?"definition":"name "+c.s.toFixed(2)):(c.seen?c.s.toFixed(2):"not retrieved")}</span></div>`;
+  }).join("")+`<p class="snippet" style="margin-top:8px">${S.sem
+    ? "The semantic layer ignores the name ranking entirely. It hands the model one column and four filters, agreed once by finance and data. Faded rows were never retrieved — with a definition in hand, it doesn't matter."
+    : `No definitions in the prompt, so the model ranks column names against the word in the question, over the tables retrieval gave it. Faded rows it never saw. It picked <code>${esc(pick.t)}.${esc(pick.c)}</code>${pick.c==="revenue_inr"?" — a literal name match, and the wrong number.":" — and no filters, because nothing told it which lines don't count."}`}</p>`;
+
+  const canon=execute(revenuePlanWith(true)).rows[0]?.revenue||0;
+  const naive=execute(revenuePlanWith(false)).rows[0]?.revenue||0;
+  const shown=S.sem?canon:naive;
+  const tgt=execute(targetPlan()).rows[0]?.target||0;
+  const gap=tgt?(shown-tgt)/tgt*100:0;
+  box.innerHTML=`<p class="lab">Revenue reported · week 28</p>
+    <p class="big ${S.sem?"":"warnc"}">${inr(shown)}</p>
+    <p class="sub">${inrFull(shown)} from <code>${esc(pick.t)}.${esc(pick.c)}</code></p>
+    <span class="delta ${gap<0?"bad":"ok"}">${gap>=0?"+":""}${gap.toFixed(1)}% vs target ${inr(tgt)}</span>
+    <hr>
+    <p class="lab">Distance from the truth</p>
+    <p class="sub">${S.sem
+      ? "This is the canonical number. Finance's number. The one on the weekly pack."
+      : `<b style="color:var(--amber)">${inr(naive-canon)} of phantom revenue.</b> Gift-card top-ups, voided lines and franchise consignment, all counted gross. Priya is told she is ${((naive-tgt)/tgt*100).toFixed(1)}% ahead of plan. She is ${Math.abs((canon-tgt)/tgt*100).toFixed(1)}% behind it.`}</p>`;
+}
+function revenuePlanWith(sem){const old=S.sem;S.sem=sem;const p=revenuePlan();S.sem=old;return p;}
+
+function renderOut(preset,results,blocked,breach){
+  const el=document.getElementById("out");
+  if(blocked){
+    el.innerHTML=`<span class="verdict breach">blocked before execution</span>
+      <div class="answer breach"><p>The query never reached the warehouse. The validator is plain code sitting between the model and the database — it doesn't negotiate, and it can't be talked round.</p>
+      <p class="srcs" style="padding:0">${preset.id==="del"
+        ? "Note what happened: the model wrote the DELETE without hesitation. Asked to fix wrong data, it reached for the obvious tool. Everything safe about this pipeline is downstream of the model, not inside it."
+        : "Turn <b>Identity scope</b> back on, or switch the validator off to see what it was protecting you from."}</p></div>`;
+    return;
+  }
+  const destroyed=results.find(r=>r.destroyed);
+  if(destroyed){
+    el.innerHTML=`<span class="verdict breach">executed · ${destroyed.deleted} rows destroyed</span>
+      <div class="answer breach"><p>Done — ${destroyed.deleted} rows removed from <code>returns_fact</code>.</p>
+      <p class="srcs" style="padding:0">In this playground nothing was actually deleted. In production it would be, and no model apology restores a fact table. The validator is not optional.</p></div>`;
+    return;
+  }
+
+  // result tables
+  let html="";
+  results.forEach(r=>{
+    const cols=Object.keys(r.rows[0]||{});
+    html+=`<p class="sqlhead">${esc(r.plan.label)} · ${r.rows.length} row${r.rows.length===1?"":"s"} · ${r.ms.toFixed(1)}ms</p>
+    <table class="rows"><thead><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join("")}</tr></thead>
+    <tbody>${r.rows.map(row=>`<tr>${cols.map(c=>{
+      const v=row[c]; const num=typeof v==="number";
+      return `<td class="${num?"num":""}">${num?(c.match(/revenue|target|amt/)?inrFull(v):v.toLocaleString("en-IN")):esc(v)}</td>`;
+    }).join("")}</tr>`).join("")}</tbody></table><div style="height:12px"></div>`;
+  });
+  html+=narrate(preset,results,breach);
+  el.innerHTML=html;
+}
+
+function narrate(preset,results,breach){
+  const get=l=>results.find(r=>r.plan.label.startsWith(l));
+  const cite=t=>`<cite>[${t}]</cite>`;
+  const srcs=[...new Set(results.flatMap(r=>[r.plan.from,...(r.plan.joins||[]).map(j=>j.table)]))];
+  const defs=S.sem?["revenue","daily_target","slow_moving","active_store"]:[];
+  const foot=`<ul class="srcs">
+      <li>Tables: ${srcs.map(s=>"<code>"+esc(s)+"</code>").join(", ")}</li>
+      ${defs.length?`<li>Definitions: ${defs.map(d=>"<code>"+d+"</code>").join(", ")}</li>`:`<li style="color:var(--amber)">Definitions: none — columns chosen by the model</li>`}
+      <li>Total execution: ${results.reduce((a,r)=>a+r.ms,0).toFixed(1)}ms across ${results.length} quer${results.length===1?"y":"ies"}</li>
+    </ul>`;
+
+  if(preset.id==="cmp"){
+    const r=results[0];
+    if(S.scope){
+      return `<span class="verdict ok">grounded · scope held</span>
+      <div class="answer"><p>I can only see store 14. Mumbai came back at ${inrFull(r.rows[0]?.revenue||0)} ${cite(1)} — Bangalore's rows were filtered out before the query ran, so I have nothing to compare against.</p>
+      <p style="font-size:13px;color:var(--muted)">The scope predicate is doing exactly its job. Priya's permission is a <code>WHERE</code> clause, not an instruction the model is trusted to remember.</p>${foot}</div>`;
+    }
+    return `<span class="verdict breach">governance breach · scope removed</span>
+    <div class="answer breach"><p>${r.rows.map(x=>`${esc(x.city)} ${inrFull(x.revenue)}`).join(" · ")} ${cite(1)}</p>
+    <p style="font-size:13px">A Mumbai store manager is now reading Bangalore's revenue. The numbers are correct — that's what makes it dangerous. Nothing looks broken.</p>${foot}</div>`;
+  }
+
+  if(preset.id==="slow"){
+    const r=results[0];
+    return `<span class="verdict ${S.sem?"ok":"bad"}">${S.sem?"grounded · canonical threshold":"grounded · threshold invented"}</span>
+    <div class="answer ${S.sem?"":"fail"}"><p>${r.rows.length} SKUs are slow-moving${S.sem?"":" by the threshold I chose"}: ${r.rows.map(x=>`<b>${esc(x.sku_id)}</b> (${x.days_on_hand}d)`).join(", ")} ${cite(1)}.</p>
+    ${S.sem?"<p style='font-size:13px;color:var(--muted)'>Threshold: 45 days on hand and more than 20 units — the definition merchandising signed off. Every store manager gets this same cut.</p>"
+          :"<p style='font-size:13px;color:var(--amber)'>I used 30 days because it sounded right. Merchandising uses 45 and also requires 20+ units on hand. My list is longer than theirs, so we'd discount stock that doesn't need it — and two managers asking the same question get two lists.</p>"}${foot}</div>`;
+  }
+
+  const rev=get("Revenue"), tgt=get("Weekly target"), worst=get("Bottom 3"), slow=get("Slow-moving");
+  if(!rev||!tgt||!rev.rows[0]||!tgt.rows[0]){
+    const r=results[0];
+    return `<span class="verdict bad">partial · decomposition off</span>
+    <div class="answer fail"><p>One query, one angle: the weakest SKUs were ${r.rows.map(x=>esc(x.sku_id)).join(", ")} ${cite(1)}. I can't tell you <em>why</em> the store missed, because I never asked about target or stock.</p>
+    <p style="font-size:13px;color:var(--muted)">"Why did I underperform" is three questions wearing a trench coat. Turn <b>Decompose</b> on.</p>${foot}</div>`;
+  }
+  const R=rev.rows[0].revenue, T=tgt.rows[0].target, gap=(R-T)/T*100;
+  const beat=R>=T;
+  let p1=`Sales were ${inrFull(R)} against a target of ${inrFull(T)} ${cite(1)}${cite(2)} — ${beat?`<b>${gap.toFixed(1)}% ahead of plan</b>`:`a <b>${Math.abs(gap).toFixed(1)}% shortfall</b>`}.`;
+  let body="";
+  if(worst){
+    body+=`<p>Three SKUs account for most of the drag ${cite(3)}:</p><ul>${worst.rows.map(x=>`<li><b>${esc(x.sku_id)}</b> ${esc(x.name)} — ${inrFull(x.revenue)}, ${x.days_on_hand} days on hand</li>`).join("")}</ul>`;
+    if(slow&&slow.rows.length){
+      const first=slow.rows[0];
+      body+=`<p>Discount <b>${esc(first.sku_id)}</b> first ${cite(4)} — ${first.days_on_hand} days on hand and ${first.on_hand_qty} units sitting in the stockroom, the oldest stock you're carrying.</p>`;
+    }
+  }
+  const bad=!S.sem;
+  return `<span class="verdict ${bad?"bad":"ok"}">${bad?"grounded in the wrong column":"grounded · citations live"}</span>
+  <div class="answer ${bad?"fail":""}"><p>${p1}</p>${body}
+  ${bad?`<p style="font-size:13px;color:var(--amber)"><b>Every number above is real — and the headline is false.</b> It's summed from <code>finance_daily_rollup.revenue_inr</code>: gross, gift cards included, voids included, franchise included. Nothing in the answer looks wrong. Nothing in the SQL looks wrong. Priya walks into Monday's call believing she beat plan.</p>`:""}${foot}</div>`;
+}
+
+/* ============================ 8. WIRING ============================ */
+const presetsEl=document.getElementById("presets");
+presetsEl.innerHTML=PRESETS.map((p,i)=>`<button class="chip ${p.danger?"danger":""}" data-i="${i}" aria-pressed="${i===0}">${esc(p.q.length>42?p.q.slice(0,40)+"…":p.q)}</button>`).join("");
+presetsEl.addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;
+  S.preset=+b.dataset.i;[...presetsEl.children].forEach(x=>x.setAttribute("aria-pressed",+x.dataset.i===S.preset));run();});
+document.getElementById("sem").addEventListener("change",e=>{S.sem=e.target.checked;run();});
+document.getElementById("decomp").addEventListener("change",e=>{S.decomp=e.target.checked;run();});
+document.getElementById("scope").addEventListener("change",e=>{S.scope=e.target.checked;run();});
+document.getElementById("valid").addEventListener("change",e=>{S.valid=e.target.checked;run();});
+document.getElementById("k").addEventListener("input",e=>{S.k=+e.target.value;document.getElementById("kVal").textContent=S.k;run();});
+run();
+</script>
+</body>
+</html>
